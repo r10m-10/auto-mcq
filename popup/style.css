@@ -2,9 +2,20 @@
     font-family: 'Space Grotesk', sans-serif;
 }
 
+body {
+    width: 250px;
+    box-sizing: border-box;
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .circle-btn {
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     display: inline-flex;
     justify-content: center;
@@ -13,9 +24,19 @@
     color: white;
     border: none;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 22px;
 }
 
 .circle-btn:hover {
     background-color: #0056b3;
+}
+
+.circle-btn.selected {
+    background-color: #ff8a51;
+}
+
+.McqGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
 }
