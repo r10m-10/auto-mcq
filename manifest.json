@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Fastest Finger",
+  "name": "AutoMCQ",
   "version": "1.0.0",
   "description": "Web extension for your Vedantu live quizzes that automatically selects the chosen quiz option when it appears, as fast as possible, simulating a physical click.",
 
@@ -27,6 +27,6 @@
 
   "action": {
     "default_popup": "popup/index.html",
-    "default_title": "FastestFinger"
+    "default_title": "AutoMCQ"
   }
 }

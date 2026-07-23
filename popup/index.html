@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="utf-8">
@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.conditional.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -25,6 +26,13 @@
     <hr>
     <div class="status">
         <h3>STATUS: <span class="cur-status">ACTIVE</span></h3>
+        <div class="pico">
+            <fieldset>
+                <label>
+                    <input type="checkbox" role="switch" checked/>
+                </label>
+            </fieldset>
+        </div>
     </div>
     <script src="script.js"></script>
 </body>
