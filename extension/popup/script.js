@@ -5,6 +5,9 @@ const status = document.querySelector(".cur-status")
 const balanceEl = document.querySelector(".credits-balance")
 const popupContent = document.getElementById("popupContent")
 const toggle = document.getElementById("extensionToggle")
+const toastOverlay = document.getElementById("toastOverlay")
+const toastMessage = document.getElementById("toastMessage")
+const toastClose = document.getElementById("toastClose")
 
 let deviceId = null
 let creditsBalance = null
@@ -20,8 +23,47 @@ function applyDisabledState(disabled) {
     status.textContent = disabled ? "DISABLED" : "ACTIVE"
 }
 
+function showToast(msg) {
+    toastMessage.textContent = msg
+    toastOverlay.classList.add("visible")
+}
+
+function hideToast() {
+    toastOverlay.classList.remove("visible")
+}
+
+toastClose.addEventListener("click", hideToast)
+toastOverlay.addEventListener("click", function (e) {
+    if (e.target === toastOverlay) hideToast()
+})
+
+function applyStateFromResponse(resp, resetStatus) {
+    document.querySelectorAll(".circle-btn").forEach(b => b.classList.remove("selected"))
+    if (resp.opt) {
+        const btn = document.querySelector(`.circle-btn[data-option="${resp.opt}"]`)
+        if (btn) btn.classList.add("selected")
+    }
+
+    if (resp.mode) {
+        const modeName = resp.mode === "premium_click" ? "fast" : "normal"
+        document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"))
+        const modeBtn = document.querySelector(`.mode-btn[data-mode="${modeName}"]`)
+        if (modeBtn) modeBtn.classList.add("active")
+        currentMode = modeName
+        chrome.storage.local.set({ selected_mode: currentMode })
+    }
+
+    if (resetStatus) {
+        status.textContent = "ACTIVE"
+    } else if (resp.clickPending) {
+        status.textContent = "CLICK PENDING..."
+    } else {
+        status.textContent = resp.stat === "DISABLED" ? "ACTIVE" : (resp.stat || "ACTIVE")
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async function () {
-    const stored = await chrome.storage.local.get(["device_id", "extension_enabled"])
+    const stored = await chrome.storage.local.get(["device_id", "extension_enabled", "selected_mode"])
     if (stored.device_id) {
         deviceId = stored.device_id
     } else {
@@ -33,19 +75,32 @@ document.addEventListener("DOMContentLoaded", async function () {
     toggle.checked = extensionEnabled
     applyDisabledState(!extensionEnabled)
 
+    if (stored.selected_mode && ["normal", "fast"].includes(stored.selected_mode)) {
+        currentMode = stored.selected_mode
+        const modeBtn = document.querySelector(`.mode-btn[data-mode="${currentMode}"]`)
+        if (modeBtn) {
+            document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"))
+            modeBtn.classList.add("active")
+        }
+    }
+
     if (extensionEnabled) {
         await linkAndFetchBalance()
 
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
             const resp = await chrome.tabs.sendMessage(tab.id, { action: "get-state" })
-            if (resp.opt) {
-                const btn = document.querySelector(`.circle-btn[data-option="${resp.opt}"]`)
-                if (btn) btn.classList.add("selected")
-            }
-            status.textContent = resp.stat
+            applyStateFromResponse(resp, false)
         } catch {
             // no content script available on this tab
+        }
+    } else {
+        document.querySelectorAll(".circle-btn").forEach(b => b.classList.remove("selected"))
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+            await chrome.tabs.sendMessage(tab.id, { action: "disable" })
+        } catch {
+            // no content script available
         }
     }
 })
@@ -56,6 +111,7 @@ document.addEventListener("click", async function (event) {
         document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"))
         modeBtn.classList.add("active")
         currentMode = modeBtn.dataset.mode
+        chrome.storage.local.set({ selected_mode: currentMode })
         return
     }
 
@@ -77,9 +133,8 @@ document.addEventListener("click", async function (event) {
     }
 
     if (creditsBalance < cost) {
-        status.textContent = `Not enough credits for ${currentMode} mode (need ${cost}, have ${creditsBalance})`
         btn.classList.remove("selected")
-        setTimeout(() => { status.textContent = "ACTIVE" }, 3000)
+        showToast(`INSUFFICIENT CREDITS\nNEED: ${cost} | HAVE: ${creditsBalance}`)
         return
     }
 
@@ -107,13 +162,11 @@ toggle.addEventListener("change", async function () {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
         if (extensionEnabled) {
+            await linkAndFetchBalance()
             const resp = await chrome.tabs.sendMessage(tab.id, { action: "get-state" })
-            if (resp.opt) {
-                const btn = document.querySelector(`.circle-btn[data-option="${resp.opt}"]`)
-                if (btn) btn.classList.add("selected")
-            }
-            status.textContent = resp.stat
+            applyStateFromResponse(resp, true)
         } else {
+            document.querySelectorAll(".circle-btn").forEach(b => b.classList.remove("selected"))
             await chrome.tabs.sendMessage(tab.id, { action: "disable" })
         }
     } catch {
@@ -121,20 +174,28 @@ toggle.addEventListener("change", async function () {
     }
 })
 
+let clickStatusTimer = null
+
 chrome.runtime.onMessage.addListener(function (message) {
     if (!message.clicked) return
 
+    if (clickStatusTimer) clearTimeout(clickStatusTimer)
     status.textContent = "CLICKED!"
 
     const btn = document.querySelector(`.circle-btn[data-option="${message.option}"]`)
     if (btn) btn.classList.remove("selected")
 
-    const clickType = message.mode || "normal_click"
-    consumeCredits(clickType)
-
-    setTimeout(() => {
+    clickStatusTimer = setTimeout(() => {
         status.textContent = "ACTIVE"
+        clickStatusTimer = null
     }, 2000)
+})
+
+chrome.storage.onChanged.addListener(function (changes, area) {
+    if (area === "local" && changes.credits_balance) {
+        creditsBalance = changes.credits_balance.newValue
+        balanceEl.textContent = creditsBalance
+    }
 })
 
 async function linkAndFetchBalance() {
@@ -154,30 +215,8 @@ async function linkAndFetchBalance() {
     } catch (e) {
         console.error("API error:", e)
         balanceEl.textContent = "?"
+        creditsBalance = 0
         status.textContent = "API ERROR"
         setTimeout(() => { status.textContent = "ACTIVE" }, 3000)
-    }
-}
-
-async function consumeCredits(clickType) {
-    try {
-        const resp = await fetch(`${API_BASE}/consume-click`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ device_id: deviceId, click_type: clickType }),
-        })
-        if (resp.ok) {
-            const data = await resp.json()
-            creditsBalance = data.credits_balance
-            balanceEl.textContent = creditsBalance
-        } else if (resp.status === 402) {
-            const data = await resp.json()
-            console.error("Credit sync:", data.detail)
-            balanceEl.textContent = `${creditsBalance}?`
-        } else {
-            console.error("consume-click failed:", resp.status)
-        }
-    } catch (e) {
-        console.error("Network error consuming credits:", e)
     }
 }

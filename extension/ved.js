@@ -6,7 +6,7 @@ let clickTimer = null
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     if (message.action == "get-state"){
-        sendResponse({opt: selection, stat: stat})
+        sendResponse({opt: selection, stat: stat, mode: mode, clickPending: clickPending})
     }
     else if (message.action == "set-option"){
         if (clickTimer) {
@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         clickPending = false
         selection = message.option
         mode = message.mode
-        stat = `CLICKING ${selection}...`
+        stat = `CLICKING ${selection} (${message.mode === "premium_click" ? "fast" : "normal"})...`
     }
     else if (message.action == "disable"){
         if (clickTimer) {
