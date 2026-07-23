@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Fastest Finger</title>
+    <title>AutoMCQ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
@@ -13,23 +13,41 @@
 </head>
 
 <body>
-    <div class="main">
-        <h1>FASTEST FINGER</h1>
+    <div class="popup-content" id="popupContent">
+        <span class="credits-badge">Credits: <span class="credits-balance">—</span></span>
+        <div class="main">
+            <h1 class="heading">AUTO MCQ</h1>
 
-        <div class="McqGrid">
-            <button class="circle-btn" data-option="A">A</button>
-            <button class="circle-btn" data-option="B">B</button>
-            <button class="circle-btn" data-option="C">C</button>
-            <button class="circle-btn" data-option="D">D</button>
+            <div class="mode-selector-wrapper">
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="normal">Normal</button>
+                    <button class="mode-btn" data-mode="fast">Fast</button>
+                </div>
+                <button class="info-btn" aria-label="Show mode details" tabindex="0">
+                    <span class="info-icon" aria-hidden="true">&#8505;</span>
+                    <span class="tooltip" role="tooltip">
+                        <b>Normal</b> &mdash; 5s delay, costs 1 credit<br>
+                        <b>Fast</b> &mdash; instant click, costs 4 credits
+                    </span>
+                </button>
+            </div>
+
+            <div class="McqGrid">
+                <button class="circle-btn" data-option="A">A</button>
+                <button class="circle-btn" data-option="B">B</button>
+                <button class="circle-btn" data-option="C">C</button>
+                <button class="circle-btn" data-option="D">D</button>
+            </div>
         </div>
     </div>
+
     <hr>
     <div class="status">
         <h3>STATUS: <span class="cur-status">ACTIVE</span></h3>
         <div class="pico">
             <fieldset>
                 <label>
-                    <input type="checkbox" role="switch" checked/>
+                    <input type="checkbox" id="extensionToggle" role="switch" checked />
                 </label>
             </fieldset>
         </div>

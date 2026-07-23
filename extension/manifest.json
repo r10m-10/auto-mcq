@@ -10,7 +10,8 @@
   ],
 
   "host_permissions": [
-    "*://*.vedantu.com/*"
+    "*://*.vedantu.com/*",
+    "https://automcq.reyaanshsharma.com/*"
   ],
 
   "content_scripts": [
