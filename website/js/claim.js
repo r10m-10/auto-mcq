@@ -61,7 +61,6 @@ async function linkAndLoad(deviceId) {
   $("#deviceShort").textContent = deviceId.slice(0, 8).toUpperCase() + "\u2026"
 
   try {
-    await linkDevice(deviceId)
     const balance = await getBalance(deviceId)
     applyBalance(balance.credits_balance)
     setStatus("LINKED", "stamp--ok")
@@ -71,8 +70,25 @@ async function linkAndLoad(deviceId) {
     closeManualLink()
     loadHistory(deviceId)
   } catch (err) {
-    setApiError(err)
+    if (err.status === 404) {
+      showNotConnected(deviceId)
+    } else {
+      setApiError(err)
+    }
   }
+}
+
+function showNotConnected(deviceId) {
+  setStatus("NOT CONNECTED", "stamp--off")
+  $("#deviceState").textContent =
+    "No device found with ID " +
+    deviceId.slice(0, 8).toUpperCase() +
+    "\u2026 on the credit server. It may have been reset \u2014 paste your current device ID from the extension popup below."
+  $("#deviceState").className = "device-meta"
+  $("#watchAdBtn").disabled = true
+  openManualLink()
+  $("#historyEmpty").textContent =
+    "No activity yet \u2014 link your device to see your ledger."
 }
 
 function setStatus(text, cls) {
