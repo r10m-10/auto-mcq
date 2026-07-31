@@ -1,6 +1,16 @@
 const API_BASE = "https://automcq.reyaanshsharma.com"
 
 chrome.runtime.onMessage.addListener(async function (message, sender, sendResponse) {
+    if (message.action === "claim") {
+        await chrome.storage.local.set({
+            last_claim: {
+                delta: message.delta,
+                balance: message.balance,
+                ts: Date.now(),
+            },
+        })
+        return
+    }
     if (message.clicked) {
         await consumeCredits(message.mode || "normal_click")
     }

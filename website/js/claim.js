@@ -245,6 +245,10 @@ async function claimReward() {
     flashEarned(AD_REWARD)
     closeAdModal()
     loadHistory(state.deviceId)
+    window.postMessage(
+      { type: "automcq-claim", delta: res.delta, balance: res.credits_balance },
+      "*"
+    )
   } catch (err) {
     setApiError(err)
     closeAdModal()

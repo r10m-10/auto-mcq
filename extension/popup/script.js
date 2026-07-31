@@ -11,6 +11,17 @@ const toastClose = document.getElementById("toastClose")
 const infoBtn = document.querySelector(".info-btn")
 const infoOverlay = document.getElementById("infoOverlay")
 const claimBtn = document.getElementById("claimBtn")
+const menuBtn = document.getElementById("menuBtn")
+const menu = document.getElementById("menu")
+const themeSwitch = document.getElementById("themeSwitch")
+const copyIdBtn = document.getElementById("copyIdBtn")
+const ledgerBtn = document.getElementById("ledgerBtn")
+const privacyBtn = document.getElementById("privacyBtn")
+const homeBtn = document.getElementById("homeBtn")
+const resetIdBtn = document.getElementById("resetIdBtn")
+const resetOverlay = document.getElementById("resetOverlay")
+const resetConfirmBtn = document.getElementById("resetConfirmBtn")
+const resetCancelBtn = document.getElementById("resetCancelBtn")
 
 let deviceId = null
 let creditsBalance = null
@@ -60,6 +71,8 @@ document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
         hideToast()
         hideInfo()
+        setMenuOpen(false)
+        hideReset()
     }
 })
 
@@ -67,6 +80,110 @@ claimBtn.addEventListener("click", async function () {
     const stored = await chrome.storage.local.get("device_id")
     const id = stored.device_id || deviceId
     chrome.tabs.create({ url: `${API_BASE}/claim?device_id=${encodeURIComponent(id)}` })
+})
+
+/* ---------- Menu ---------- */
+
+const THEME_KEY = "theme"
+
+function setMenuOpen(open) {
+    menu.classList.toggle("is-open", open)
+    menu.setAttribute("aria-hidden", String(!open))
+    menuBtn.setAttribute("aria-expanded", String(open))
+}
+
+menuBtn.addEventListener("click", function () {
+    setMenuOpen(!menu.classList.contains("is-open"))
+})
+
+document.addEventListener("click", function (e) {
+    if (!menu.classList.contains("is-open")) return
+    if (menu.contains(e.target) || menuBtn.contains(e.target)) return
+    setMenuOpen(false)
+})
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme)
+    themeSwitch.setAttribute("aria-checked", String(theme === "dark"))
+}
+
+themeSwitch.addEventListener("click", async function () {
+    const next =
+        document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"
+    applyTheme(next)
+    await chrome.storage.local.set({ [THEME_KEY]: next })
+})
+
+copyIdBtn.addEventListener("click", async function () {
+    const stored = await chrome.storage.local.get("device_id")
+    const id = stored.device_id || deviceId
+    if (!id) {
+        showToast("NO DEVICE ID YET")
+        setMenuOpen(false)
+        return
+    }
+    try {
+        await navigator.clipboard.writeText(id)
+        showToast("DEVICE ID COPIED")
+    } catch (e) {
+        showToast("COPY FAILED \u2014 TRY AGAIN")
+    }
+    setMenuOpen(false)
+})
+
+ledgerBtn.addEventListener("click", function () {
+    const id = encodeURIComponent(deviceId || "")
+    chrome.tabs.create({ url: `${API_BASE}/claim?device_id=${id}` })
+    setMenuOpen(false)
+})
+
+privacyBtn.addEventListener("click", function () {
+    chrome.tabs.create({ url: `${API_BASE}/privacy` })
+    setMenuOpen(false)
+})
+
+homeBtn.addEventListener("click", function () {
+    chrome.tabs.create({ url: API_BASE })
+    setMenuOpen(false)
+})
+
+function showReset() {
+    setMenuOpen(false)
+    resetOverlay.classList.add("visible")
+}
+
+function hideReset() {
+    resetOverlay.classList.remove("visible")
+}
+
+resetIdBtn.addEventListener("click", showReset)
+
+resetOverlay.addEventListener("click", function (e) {
+    if (e.target === resetOverlay) hideReset()
+})
+
+resetCancelBtn.addEventListener("click", hideReset)
+
+resetConfirmBtn.addEventListener("click", async function () {
+    const oldId = deviceId
+    if (oldId) {
+        try {
+            await fetch(`${API_BASE}/device?device_id=${encodeURIComponent(oldId)}`, {
+                method: "DELETE",
+            })
+        } catch {
+            // device may already be gone or unreachable; reset locally anyway
+        }
+    }
+    deviceId = crypto.randomUUID()
+    await chrome.storage.local.set({ device_id: deviceId })
+    hideReset()
+    await linkAndFetchBalance()
+    showToast("DEVICE ID RESET")
+})
+
+document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") setMenuOpen(false)
 })
 
 function applyStateFromResponse(resp, resetStatus) {
@@ -95,7 +212,14 @@ function applyStateFromResponse(resp, resetStatus) {
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
-    const stored = await chrome.storage.local.get(["device_id", "extension_enabled", "selected_mode"])
+    const stored = await chrome.storage.local.get(["device_id", "extension_enabled", "selected_mode", THEME_KEY])
+
+    const manifestVersion = chrome.runtime.getManifest().version
+    document.getElementById("menuVersion").textContent = "AutoMCQ v" + manifestVersion
+
+    const savedTheme = stored[THEME_KEY]
+    applyTheme(savedTheme || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"))
+
     if (stored.device_id) {
         deviceId = stored.device_id
     } else {

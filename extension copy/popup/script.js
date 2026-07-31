@@ -22,6 +22,10 @@ const resetIdBtn = document.getElementById("resetIdBtn")
 const resetOverlay = document.getElementById("resetOverlay")
 const resetConfirmBtn = document.getElementById("resetConfirmBtn")
 const resetCancelBtn = document.getElementById("resetCancelBtn")
+const sponsorOverlay = document.getElementById("sponsorOverlay")
+const sponsorDelta = document.getElementById("sponsorDelta")
+const sponsorClose = document.getElementById("sponsorClose")
+const sponsorAdCta = document.getElementById("sponsorAdCta")
 
 let deviceId = null
 let creditsBalance = null
@@ -73,6 +77,7 @@ document.addEventListener("keydown", function (e) {
         hideInfo()
         setMenuOpen(false)
         hideReset()
+        hideSponsor()
     }
 })
 
@@ -182,6 +187,29 @@ resetConfirmBtn.addEventListener("click", async function () {
     showToast("DEVICE ID RESET")
 })
 
+/* ---------- Sponsor card ---------- */
+
+const SPONSOR_FRESH_MS = 120000
+
+function showSponsor(claim) {
+    if (Date.now() - claim.ts > SPONSOR_FRESH_MS) return
+    sponsorDelta.textContent = String(claim.delta)
+    sponsorOverlay.classList.add("visible")
+}
+
+function hideSponsor() {
+    sponsorOverlay.classList.remove("visible")
+}
+
+sponsorClose.addEventListener("click", hideSponsor)
+sponsorOverlay.addEventListener("click", function (e) {
+    if (e.target === sponsorOverlay) hideSponsor()
+})
+
+sponsorAdCta.addEventListener("click", function () {
+    chrome.tabs.create({ url: API_BASE })
+})
+
 document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") setMenuOpen(false)
 })
@@ -212,13 +240,18 @@ function applyStateFromResponse(resp, resetStatus) {
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
-    const stored = await chrome.storage.local.get(["device_id", "extension_enabled", "selected_mode", THEME_KEY])
+    const stored = await chrome.storage.local.get(["device_id", "extension_enabled", "selected_mode", THEME_KEY, "last_claim"])
 
     const manifestVersion = chrome.runtime.getManifest().version
     document.getElementById("menuVersion").textContent = "AutoMCQ v" + manifestVersion
 
     const savedTheme = stored[THEME_KEY]
     applyTheme(savedTheme || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"))
+
+    if (stored.last_claim) {
+        showSponsor(stored.last_claim)
+        await chrome.storage.local.remove("last_claim")
+    }
 
     if (stored.device_id) {
         deviceId = stored.device_id
@@ -347,9 +380,14 @@ chrome.runtime.onMessage.addListener(function (message) {
 })
 
 chrome.storage.onChanged.addListener(function (changes, area) {
-    if (area === "local" && changes.credits_balance) {
+    if (area !== "local") return
+    if (changes.credits_balance) {
         creditsBalance = changes.credits_balance.newValue
         balanceEl.textContent = creditsBalance
+    }
+    if (changes.last_claim && changes.last_claim.newValue) {
+        showSponsor(changes.last_claim.newValue)
+        chrome.storage.local.remove("last_claim")
     }
 })
 
