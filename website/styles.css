@@ -21,8 +21,8 @@
   --shadow-color: rgba(30, 33, 40, 0.85);
   --shadow-ghost: rgba(30, 33, 40, 0.4);
   --shadow-soft: rgba(30, 33, 40, 0.25);
-  --ad-label: rgba(236, 239, 244, 0.6);
-  --ad-hint: rgba(236, 239, 244, 0.85);
+  --reward-label: rgba(236, 239, 244, 0.6);
+  --reward-hint: rgba(236, 239, 244, 0.85);
 
   --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -51,8 +51,8 @@
     --shadow-color: rgba(236, 239, 244, 0.5);
     --shadow-ghost: rgba(236, 239, 244, 0.35);
     --shadow-soft: rgba(236, 239, 244, 0.25);
-    --ad-label: rgba(30, 33, 40, 0.6);
-    --ad-hint: rgba(30, 33, 40, 0.85);
+    --reward-label: rgba(30, 33, 40, 0.6);
+    --reward-hint: rgba(30, 33, 40, 0.85);
   }
 }
 
@@ -78,8 +78,8 @@
   --shadow-color: rgba(236, 239, 244, 0.5);
   --shadow-ghost: rgba(236, 239, 244, 0.35);
   --shadow-soft: rgba(236, 239, 244, 0.25);
-  --ad-label: rgba(30, 33, 40, 0.6);
-  --ad-hint: rgba(30, 33, 40, 0.85);
+  --reward-label: rgba(30, 33, 40, 0.6);
+  --reward-hint: rgba(30, 33, 40, 0.85);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -702,7 +702,7 @@ section[id] { scroll-margin-top: 4.5rem; }
 
 .modal-close:hover { color: var(--pen-red); }
 
-.ad-frame {
+.reward-frame {
   margin: 1.25rem;
   border: 1px solid var(--line-strong);
   background: var(--ink);
@@ -712,22 +712,22 @@ section[id] { scroll-margin-top: 4.5rem; }
   font-family: var(--font-mono);
 }
 
-.ad-frame .ad-label {
+.reward-frame .reward-label {
   font-size: 0.7rem;
   letter-spacing: 0.3em;
-  color: var(--ad-label);
+  color: var(--reward-label);
   text-transform: uppercase;
 }
 
-.ad-frame .ad-timer {
+.reward-frame .reward-timer {
   font-size: clamp(3rem, 14vw, 4.5rem);
   font-weight: 700;
   margin: 0.5rem 0;
 }
 
-.ad-frame .ad-hint { font-size: 0.8rem; letter-spacing: 0.08em; color: var(--ad-hint); margin: 0; }
+.reward-frame .reward-hint { font-size: 0.8rem; letter-spacing: 0.08em; color: var(--reward-hint); margin: 0; }
 
-.ad-note {
+.reward-note {
   font-size: 0.85rem;
   color: var(--pencil);
   padding: 0 1.25rem 1rem;

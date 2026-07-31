@@ -49,7 +49,7 @@ function showUnlinked() {
   $("#deviceState").textContent =
     "No device ID found in this link. Paste the device ID from the extension popup below to connect."
   $("#deviceState").className = "device-meta"
-  $("#watchAdBtn").disabled = true
+  $("#watchRewardBtn").disabled = true
   openManualLink()
   $("#historyEmpty").textContent =
     "No activity yet \u2014 link your device to see your ledger."
@@ -66,7 +66,7 @@ async function linkAndLoad(deviceId) {
     setStatus("LINKED", "stamp--ok")
     $("#deviceState").textContent = deviceId
     $("#deviceState").className = "device-id"
-    $("#watchAdBtn").disabled = false
+    $("#watchRewardBtn").disabled = false
     closeManualLink()
     loadHistory(deviceId)
   } catch (err) {
@@ -98,7 +98,7 @@ function setApiError(err) {
   $("#deviceState").textContent =
     "Could not reach the credit server (HTTP " + (err.status || "?") + "). Check your connection and try again."
   $("#deviceState").className = "device-meta"
-  $("#watchAdBtn").disabled = true
+  $("#watchRewardBtn").disabled = true
   openManualLink()
 }
 
@@ -177,10 +177,10 @@ function closeManualLink() {
 }
 
 function bindEvents() {
-  $("#watchAdBtn").addEventListener("click", openAdModal)
-  $("#adClose").addEventListener("click", closeAdModal)
-  $("#adCancel").addEventListener("click", closeAdModal)
-  $("#adClaim").addEventListener("click", claimReward)
+  $("#watchRewardBtn").addEventListener("click", openAdModal)
+  $("#rewardClose").addEventListener("click", closeAdModal)
+  $("#rewardCancel").addEventListener("click", closeAdModal)
+  $("#rewardClaim").addEventListener("click", claimReward)
 
   $("#manualLinkForm").addEventListener("submit", (e) => {
     e.preventDefault()
@@ -200,13 +200,13 @@ function openAdModal() {
     window.clearInterval(state.adTimer)
     state.adTimer = null
   }
-  const modal = $("#adModal")
+  const modal = $("#rewardModal")
   modal.classList.add("is-open")
 
   let remaining = AD_SECONDS
-  const timerEl = $("#adTimer")
-  const hintEl = $("#adHint")
-  const claimBtn = $("#adClaim")
+  const timerEl = $("#rewardTimer")
+  const hintEl = $("#rewardHint")
+  const claimBtn = $("#rewardClaim")
 
   claimBtn.disabled = true
   hintEl.textContent = "WATCHING\u2026"
@@ -224,7 +224,7 @@ function openAdModal() {
     }
   }, 1000)
 
-  $("#adCancel").focus()
+  $("#rewardCancel").focus()
 }
 
 function closeAdModal() {
@@ -232,12 +232,12 @@ function closeAdModal() {
     window.clearInterval(state.adTimer)
     state.adTimer = null
   }
-  $("#adModal").classList.remove("is-open")
-  $("#adClaim").disabled = true
+  $("#rewardModal").classList.remove("is-open")
+  $("#rewardClaim").disabled = true
 }
 
 async function claimReward() {
-  const btn = $("#adClaim")
+  const btn = $("#rewardClaim")
   btn.disabled = true
   try {
     const res = await claimSandbox(state.deviceId)

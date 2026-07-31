@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260731">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
@@ -56,7 +56,7 @@
     <section class="panel" aria-labelledby="earnTitle">
       <h2 class="panel-title" id="earnTitle"><span class="tick">&#9632;</span> Earn credits</h2>
       <p>Watch a short rewarded ad to earn <strong class="mono">+3</strong> credits for this device.</p>
-      <button class="btn btn-primary" id="watchAdBtn" disabled>WATCH AD &rarr; +3 CREDITS</button>
+      <button class="btn btn-primary" id="watchRewardBtn" disabled>WATCH AD &rarr; +3 CREDITS</button>
     </section>
 
     <section class="panel" aria-labelledby="historyTitle">
@@ -88,26 +88,26 @@
     </div>
   </footer>
 
-  <div class="modal-backdrop" id="adModal" role="dialog" aria-modal="true" aria-labelledby="adTitle">
+  <div class="modal-backdrop" id="rewardModal" role="dialog" aria-modal="true" aria-labelledby="rewardTitle">
     <div class="modal">
       <div class="modal-head">
-        <span id="adTitle">REWARDED AD &middot; SANDBOX</span>
-        <button class="modal-close" id="adClose" aria-label="Close">&times;</button>
+        <span id="rewardTitle">REWARDED AD &middot; SANDBOX</span>
+        <button class="modal-close" id="rewardClose" aria-label="Close">&times;</button>
       </div>
-      <div class="ad-frame">
-        <p class="ad-label">Advert &middot; AutoMCQ Ad Network (Sandbox)</p>
-        <p class="ad-timer" id="adTimer">15</p>
-        <p class="ad-hint" id="adHint">WATCHING&hellip;</p>
+      <div class="reward-frame">
+        <p class="reward-label">Advert &middot; AutoMCQ Ad Network (Sandbox)</p>
+        <p class="reward-timer" id="rewardTimer">25</p>
+        <p class="reward-hint" id="rewardHint">WATCHING&hellip;</p>
       </div>
-      <p class="ad-note">This is a sandbox demo of the rewarded-ad flow. Real ads arrive once the offerwall SDK is approved. You can cancel anytime &mdash; no credit, no charge.</p>
+      <p class="reward-note">This is a sandbox demo of the rewarded-ad flow. Real ads arrive once the offerwall SDK is approved. You can cancel anytime &mdash; no credit, no charge.</p>
       <div class="modal-actions">
-        <button class="btn btn-ghost" id="adCancel">CANCEL</button>
-        <button class="btn btn-primary" id="adClaim" disabled>CLAIM +3 CREDITS</button>
+        <button class="btn btn-ghost" id="rewardCancel">CANCEL</button>
+        <button class="btn btn-primary" id="rewardClaim" disabled>CLAIM +3 CREDITS</button>
       </div>
     </div>
   </div>
 
-  <script src="js/shared.js?v=20260731"></script>
-  <script src="js/claim.js?v=20260731"></script>
+  <script src="js/shared.js"></script>
+  <script src="js/claim.js"></script>
 </body>
 </html>
