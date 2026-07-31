@@ -1,0 +1,257 @@
+"use strict"
+
+const AD_SECONDS = 15
+const AD_REWARD = 3
+const BALANCE_BUBBLES = 12
+const HEADER_BUBBLES = 8
+
+const state = {
+  deviceId: null,
+  balance: null,
+  balanceGrid: null,
+  headerGrid: null,
+  adTimer: null,
+}
+
+function $(sel) {
+  return document.querySelector(sel)
+}
+
+async function init() {
+  ensurePencilDefs()
+  state.balanceGrid = new BubbleGrid($("#balanceBubbles"), {
+    total: BALANCE_BUBBLES,
+    filled: 0,
+  })
+  state.headerGrid = new BubbleGrid($("#headerBubbles"), {
+    total: HEADER_BUBBLES,
+    filled: 0,
+  })
+
+  const params = new URLSearchParams(window.location.search)
+  let device = params.get("device_id")
+  if (!device || !looksLikeUuid(device)) {
+    device = localStorage.getItem("automcq_device_id")
+  }
+
+  if (device && looksLikeUuid(device)) {
+    await linkAndLoad(device)
+  } else {
+    showUnlinked()
+  }
+
+  bindEvents()
+}
+
+function showUnlinked() {
+  setStatus("UNLINKED", "stamp--off")
+  $("#deviceShort").textContent = "\u2014"
+  $("#deviceState").textContent =
+    "No device ID found in this link. Paste the device ID from the extension popup below to connect."
+  $("#deviceState").className = "device-meta"
+  $("#watchAdBtn").disabled = true
+  openManualLink()
+  $("#historyEmpty").textContent =
+    "No activity yet \u2014 link your device to see your ledger."
+}
+
+async function linkAndLoad(deviceId) {
+  state.deviceId = deviceId
+  localStorage.setItem("automcq_device_id", deviceId)
+  $("#deviceShort").textContent = deviceId.slice(0, 8).toUpperCase() + "\u2026"
+
+  try {
+    await linkDevice(deviceId)
+    const balance = await getBalance(deviceId)
+    applyBalance(balance.credits_balance)
+    setStatus("LINKED", "stamp--ok")
+    $("#deviceState").textContent = deviceId
+    $("#deviceState").className = "device-id"
+    $("#watchAdBtn").disabled = false
+    closeManualLink()
+    loadHistory(deviceId)
+  } catch (err) {
+    setApiError(err)
+  }
+}
+
+function setStatus(text, cls) {
+  const el = $("#claimStatus")
+  el.textContent = text
+  el.className = "claim-status stamp " + cls
+}
+
+function setApiError(err) {
+  setStatus("API ERROR", "stamp--off")
+  $("#deviceState").textContent =
+    "Could not reach the credit server (HTTP " + (err.status || "?") + "). Check your connection and try again."
+  $("#deviceState").className = "device-meta"
+  $("#watchAdBtn").disabled = true
+  openManualLink()
+}
+
+function applyBalance(count) {
+  state.balance = count
+  state.balanceGrid.setFilled(count)
+  state.headerGrid.setFilled(Math.min(count, HEADER_BUBBLES))
+  $("#balanceCount").textContent = String(count).padStart(2, "0")
+  $("#headerBalance").textContent = count
+  $("#headerCredits").classList.add("is-visible")
+}
+
+async function loadHistory(deviceId) {
+  try {
+    const rows = await getHistory(deviceId)
+    renderHistory(rows)
+  } catch (err) {
+    /* keep the empty state; balance is the live source of truth */
+  }
+}
+
+function renderHistory(rows) {
+  const table = $("#historyTable")
+  const empty = $("#historyEmpty")
+  if (!rows.length) {
+    empty.textContent = "No credit activity yet."
+    empty.hidden = false
+    table.hidden = true
+    return
+  }
+  empty.hidden = true
+  table.hidden = false
+  const tbody = table.querySelector("tbody")
+  tbody.innerHTML = rows
+    .map((row) => {
+      const sign = row.delta > 0 ? "+" : ""
+      const cls = row.delta > 0 ? "delta-pos" : row.delta < 0 ? "delta-neg" : ""
+      const reason =
+        row.reason === "ad_reward" ? "AD REWARD" : String(row.reason || "").toUpperCase()
+      return (
+        "<tr><td>" +
+        esc(row.timestamp) +
+        "</td><td>" +
+        esc(reason) +
+        "</td><td class=\"" +
+        cls +
+        "\">" +
+        sign +
+        row.delta +
+        "</td></tr>"
+      )
+    })
+    .join("")
+}
+
+function esc(text) {
+  const div = document.createElement("div")
+  div.textContent = String(text)
+  return div.innerHTML
+}
+
+function openManualLink() {
+  const details = document.querySelector(".manual-link")
+  if (details) details.open = true
+}
+
+function closeManualLink() {
+  const details = document.querySelector(".manual-link")
+  if (details) details.open = false
+}
+
+function bindEvents() {
+  $("#watchAdBtn").addEventListener("click", openAdModal)
+  $("#adClose").addEventListener("click", closeAdModal)
+  $("#adCancel").addEventListener("click", closeAdModal)
+  $("#adClaim").addEventListener("click", claimReward)
+  $("#adModal").addEventListener("click", (e) => {
+    if (e.target.id === "adModal") closeAdModal()
+  })
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeAdModal()
+  })
+
+  $("#manualLinkForm").addEventListener("submit", (e) => {
+    e.preventDefault()
+    const value = $("#manualDeviceId").value.trim()
+    if (!looksLikeUuid(value)) {
+      setStatus("INVALID DEVICE ID", "stamp--off")
+      return
+    }
+    linkAndLoad(value)
+  })
+}
+
+function openAdModal() {
+  /* TODO(real-offerwall): mount the real offerwall / AdSense iframe here
+     once the SDK accounts are approved. For now, a sandbox countdown. */
+  if (state.adTimer) {
+    window.clearInterval(state.adTimer)
+    state.adTimer = null
+  }
+  const modal = $("#adModal")
+  modal.classList.add("is-open")
+
+  let remaining = AD_SECONDS
+  const timerEl = $("#adTimer")
+  const hintEl = $("#adHint")
+  const claimBtn = $("#adClaim")
+
+  claimBtn.hidden = true
+  hintEl.textContent = "WATCHING\u2026"
+  timerEl.textContent = remaining
+
+  state.adTimer = window.setInterval(() => {
+    remaining -= 1
+    timerEl.textContent = remaining
+    if (remaining <= 0) {
+      window.clearInterval(state.adTimer)
+      state.adTimer = null
+      hintEl.textContent = "AD COMPLETE \u2014 CREDIT READY"
+      claimBtn.hidden = false
+      claimBtn.focus()
+    }
+  }, 1000)
+
+  $("#adCancel").focus()
+}
+
+function closeAdModal() {
+  if (state.adTimer) {
+    window.clearInterval(state.adTimer)
+    state.adTimer = null
+  }
+  $("#adModal").classList.remove("is-open")
+  $("#adClaim").hidden = true
+}
+
+async function claimReward() {
+  const btn = $("#adClaim")
+  btn.disabled = true
+  try {
+    const res = await claimSandbox(state.deviceId)
+    applyBalance(res.credits_balance)
+    flashEarned(AD_REWARD)
+    closeAdModal()
+    loadHistory(state.deviceId)
+  } catch (err) {
+    setApiError(err)
+    closeAdModal()
+  } finally {
+    btn.disabled = false
+  }
+}
+
+function flashEarned(amount) {
+  const existing = document.getElementById("earnedStamp")
+  if (existing) existing.remove()
+  const stamp = document.createElement("span")
+  stamp.className = "stamp stamp--earned"
+  stamp.id = "earnedStamp"
+  stamp.textContent = "CREDITS EARNED +" + amount
+  $("#balanceCount").closest(".balance-panel").appendChild(stamp)
+  window.setTimeout(() => {
+    if (stamp.parentNode) stamp.parentNode.removeChild(stamp)
+  }, 2600)
+}
+
+document.addEventListener("DOMContentLoaded", init)

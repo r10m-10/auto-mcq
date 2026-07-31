@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy — AutoMCQ</title>
+  <meta name="description" content="AutoMCQ privacy policy: what the extension stores, what it never collects, and how to delete your data.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="wordmark" href="index.html">AUTOM<span class="pen">CQ</span></a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="nav-link" href="index.html">HOME</a>
+        <a class="nav-link" href="claim.html">CLAIM</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top:2rem;">
+    <p class="dateline">AutoMCQ &middot; Privacy Policy &middot; Rev. 1.0 &middot; Effective July 31, 2026</p>
+    <h1 class="privacy-title">PRIVACY <span class="pen">POLICY</span></h1>
+
+    <div class="prose">
+      <h2><span class="num">01</span> THE SHORT VERSION</h2>
+      <p>AutoMCQ stores a random device ID in your browser and a credit balance on its server. It never collects your name, email, location, or any information from your test windows. There is no tracking, no advertising profile, and no data selling &mdash; there isn't even an account system.</p>
+
+      <h2><span class="num">02</span> WHAT THE EXTENSION DOES</h2>
+      <p>The extension's only job is to click an answer option that <em>you</em> chose, on a schedule you chose. On the page you're viewing it looks for the option buttons of the question you selected and clicks the one you picked &mdash; after a 5-second delay (Normal) or immediately (Fast). It does this only while you are on a supported MCQ page.</p>
+
+      <h2><span class="num">03</span> WHAT WE STORE</h2>
+      <ul>
+        <li><strong>In your browser</strong> (chrome.storage.local): a randomly generated device ID, which is the only identifier your extension uses.</li>
+        <li><strong>On the server</strong> (automcq.reyaanshsharma.com): your device ID, your credit balance, and a ledger of credit changes (amount, reason, timestamp). The ledger is what lets the extension show your current balance and lets the claim page credit you for watching ads.</li>
+      </ul>
+      <p>The server receives only your device ID and the choice you made (which option, Normal or Fast). That is the entire payload.</p>
+
+      <h2><span class="num">04</span> WHAT WE NEVER COLLECT</h2>
+      <ul>
+        <li>Question text, answer content, or any other page content from your classes.</li>
+        <li>Screenshots, video, or audio.</li>
+        <li>Your real name, email address, phone number, or any other personal information.</li>
+        <li>Your browsing history or a list of sites you visit &mdash; the extension only runs on the page you are actively viewing.</li>
+        <li>Cross-site trackers or advertising identifiers. There are no analytics beacons in this product.</li>
+      </ul>
+
+      <h2><span class="num">05</span> HOW CREDITS WORK</h2>
+      <p>Credits are a number stored on the server next to your device ID. You earn them by watching a rewarded ad on the claim page, and you spend them when a click is armed. Every credit change is written to the ledger. Credits are tied to the device, not to you as a person.</p>
+
+      <h2><span class="num">06</span> DATA DELETION</h2>
+      <p>Because no account exists, deletion is simple: clear your browser's extension storage to remove the local device ID, then contact us (details below) with the device ID shown on your claim page and we will remove the matching ledger and balance from the server. Since the device ID is random and contains no personal information, it cannot be linked back to you by anyone else.</p>
+
+      <h2><span class="num">07</span> CHILDREN</h2>
+      <p>AutoMCQ is used by students and does not collect personal information from anyone, regardless of age. The service is provided under the account of the student's parent or guardian. If you believe a child has shared personal data with us, contact us and we will remove it.</p>
+
+      <h2><span class="num">08</span> CHANGES</h2>
+      <p>If this policy changes, the revision number and effective date at the top of this page will be updated. Continued use of the extension after a change means you accept the updated policy.</p>
+
+      <h2><span class="num">09</span> CONTACT</h2>
+      <p>Questions or deletion requests: <a href="mailto:automcq@reyaanshsharma.com">automcq@reyaanshsharma.com</a> (placeholder &mdash; final address to be confirmed).</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="foot">
+        <a class="wordmark" href="index.html">AUTOM<span class="pen">CQ</span></a>
+        <nav aria-label="Footer">
+          <a href="index.html">HOME</a>
+          <a href="claim.html">CLAIM CREDITS</a>
+        </nav>
+      </div>
+      <p class="foot-note">&copy; 2026 AutoMCQ &middot; Rev. 1.0 &middot; Effective July 31, 2026.</p>
+    </div>
+  </footer>
+</body>
+</html>

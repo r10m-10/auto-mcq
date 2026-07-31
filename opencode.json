@@ -4,15 +4,11 @@
     "edit": {
       "*": "deny",
       "website/**": "allow",
-      "backend/app/routers/website.py": "allow",
-      "backend/app/routers/offerwall.py": "allow",
-      "backend/tests/test_website*.py": "allow",
-      "backend/tests/test_offerwall*.py": "allow",
+      "backend/routers/**": "allow",
+      "backend/tests/**": "allow",
       "extension/**": "deny",
-      "backend/app/models/**": "deny",
-      "backend/app/core/**": "deny",
-      "backend/app/routers/credits.py": "deny",
-      "backend/app/routers/device.py": "deny"
+      "backend/main.py": "deny",
+      "AGENTS.md": "allow"
     },
     "bash": {
       "*": "ask",

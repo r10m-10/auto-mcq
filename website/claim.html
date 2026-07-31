@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claim credits — AutoMCQ</title>
+  <meta name="description" content="Link your device and earn credits with AutoMCQ. Watch a rewarded ad, top up your balance, and auto-click on time.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="wordmark" href="index.html">AUTOM<span class="pen">CQ</span></a>
+      <div class="header-credits" id="headerCredits" aria-label="Credit balance">
+        <div class="bubble-grid bubble-grid--mini" id="headerBubbles"></div>
+        <span class="header-balance" id="headerBalance">&mdash;</span>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="nav-link" href="index.html">HOME</a>
+        <a class="nav-link" href="privacy.html">PRIVACY</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top:2rem;">
+    <p class="dateline">AutoMCQ &middot; Claim Station &middot; Device: <span id="deviceShort">&mdash;</span></p>
+    <h1 class="claim-title">CLAIM <span class="pen">CREDITS</span></h1>
+    <p class="claim-status stamp stamp--off" id="claimStatus">CONNECTING&hellip;</p>
+
+    <section class="panel" aria-labelledby="deviceTitle">
+      <h2 class="panel-title" id="deviceTitle"><span class="tick">&#9632;</span> Device</h2>
+      <p class="device-meta" id="deviceState">Looking for your device&hellip;</p>
+      <details class="manual-link">
+        <summary>Don't see your device? Link it manually.</summary>
+        <form id="manualLinkForm">
+          <label class="sr-only" for="manualDeviceId">Device ID</label>
+          <input id="manualDeviceId" type="text" autocomplete="off" spellcheck="false" placeholder="Paste device ID from the extension popup">
+          <button class="btn btn-outline btn-small" type="submit">LINK</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="panel balance-panel" aria-labelledby="balanceTitle">
+      <h2 class="panel-title" id="balanceTitle"><span class="tick">&#9632;</span> Balance</h2>
+      <div class="bubble-grid" id="balanceBubbles"></div>
+      <p class="balance-readout"><span id="balanceCount">00</span> <span class="unit">CREDITS</span></p>
+    </section>
+
+    <section class="panel" aria-labelledby="earnTitle">
+      <h2 class="panel-title" id="earnTitle"><span class="tick">&#9632;</span> Earn credits</h2>
+      <p>Watch a short rewarded ad to earn <strong class="mono">+3</strong> credits for this device.</p>
+      <button class="btn btn-primary" id="watchAdBtn" disabled>WATCH AD &rarr; +3 CREDITS</button>
+    </section>
+
+    <section class="panel" aria-labelledby="historyTitle">
+      <h2 class="panel-title" id="historyTitle"><span class="tick">&#9632;</span> Ledger</h2>
+      <p class="empty" id="historyEmpty">No activity yet &mdash; link your device to see your ledger.</p>
+      <table class="ledger" id="historyTable" hidden>
+        <thead>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Delta</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="foot">
+        <a class="wordmark" href="index.html">AUTOM<span class="pen">CQ</span></a>
+        <nav aria-label="Footer">
+          <a href="index.html">HOME</a>
+          <a href="privacy.html">PRIVACY POLICY</a>
+        </nav>
+      </div>
+      <p class="foot-note">&copy; 2026 AutoMCQ &middot; Use at your own discretion per your platform's rules.</p>
+    </div>
+  </footer>
+
+  <div class="modal-backdrop" id="adModal" role="dialog" aria-modal="true" aria-labelledby="adTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <span id="adTitle">REWARDED AD &middot; SANDBOX</span>
+        <button class="modal-close" id="adClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="ad-frame">
+        <p class="ad-label">Advert &middot; AutoMCQ Ad Network (Sandbox)</p>
+        <p class="ad-timer" id="adTimer">15</p>
+        <p class="ad-hint" id="adHint">WATCHING&hellip;</p>
+      </div>
+      <p class="ad-note">This is a sandbox demo of the rewarded-ad flow. Real ads arrive once the offerwall SDK is approved. You can cancel anytime &mdash; no credit, no charge.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="adCancel">CANCEL</button>
+        <button class="btn btn-primary" id="adClaim" hidden>CLAIM +3 CREDITS</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/shared.js"></script>
+  <script src="js/claim.js"></script>
+</body>
+</html>

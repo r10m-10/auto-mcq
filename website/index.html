@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoMCQ — Auto-click your MCQ answers, on time every time</title>
+  <meta name="description" content="AutoMCQ watches your MCQ window and fires the answer you choose. Earn credits by watching short ads; spend them to arm a click.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="wordmark" href="index.html">AUTOM<span class="pen">CQ</span></a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="nav-link" href="#how">HOW IT WORKS</a>
+        <a class="nav-link" href="#credits">CREDITS</a>
+        <a class="nav-link" href="#install">INSTALL</a>
+        <a class="nav-link" href="#faq">FAQ</a>
+        <a class="btn btn-ghost btn-small" href="claim.html">CLAIM</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <p class="dateline reveal">AutoMCQ &middot; Roll No. 000-000-001 &middot; Centre: Online &middot; Sheet: Answer Key</p>
+        <div class="hero-grid-wrap">
+          <div>
+            <h1 class="hero-title">
+              <span class="reveal" style="--d:0.05s">NEVER MISS A<br>CLICK <span class="pen">AGAIN.</span></span>
+            </h1>
+            <p class="hero-lede reveal" style="--d:0.2s">AutoMCQ watches your MCQ window and fires the answer you choose &mdash; on time, every time. Earn credits by watching short ads; spend them to arm a click.</p>
+            <div class="hero-cta reveal" style="--d:0.32s">
+              <a class="btn btn-primary" href="https://chrome.google.com/webstore" target="_blank" rel="noopener">GET THE EXTENSION</a>
+              <a class="btn btn-outline" href="claim.html">CLAIM CREDITS</a>
+            </div>
+            <div class="cost-strip reveal" style="--d:0.44s">
+              <span class="cost-item">NORMAL &middot; 1 CR &middot; 5S DELAY</span>
+              <span class="cost-item">FAST &middot; 4 CR &middot; INSTANT</span>
+            </div>
+          </div>
+          <div class="hero-sheet reveal" style="--d:0.4s">
+            <div class="omr-sheet" id="heroSheet" aria-label="Interactive OMR answer sheet. Click a bubble to fill or erase it."></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="container">
+        <div class="section-head">
+          <span class="section-num">01</span>
+          <h2 class="section-title">HOW IT WORKS</h2>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <p class="step-num">STEP 1</p>
+            <h3 class="step-title">INSTALL</h3>
+            <p>Add AutoMCQ to your browser from the Chrome Web Store. No account, no email.</p>
+          </div>
+          <div class="step">
+            <p class="step-num">STEP 2</p>
+            <h3 class="step-title">LINK YOUR DEVICE</h3>
+            <p>Tap "Claim credits" in the extension popup and your device links instantly.</p>
+          </div>
+          <div class="step">
+            <p class="step-num">STEP 3</p>
+            <h3 class="step-title">EARN CREDITS</h3>
+            <p>Watch a short rewarded ad and earn 3 credits into your balance.</p>
+          </div>
+          <div class="step">
+            <p class="step-num">STEP 4</p>
+            <h3 class="step-title">AUTO-CLICK</h3>
+            <p>Pick your answer and the mode &mdash; AutoMCQ fires it on time, every time.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="credits">
+      <div class="container">
+        <div class="section-head">
+          <span class="section-num">02</span>
+          <h2 class="section-title">CREDIT SYSTEM</h2>
+        </div>
+        <table class="cost-grid">
+          <thead>
+            <tr>
+              <th scope="col">Action</th>
+              <th scope="col">Cost</th>
+              <th scope="col">Behaviour</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="num">NORMAL CLICK</td>
+              <td><span class="num">1</span> <span class="cr">CREDIT</span></td>
+              <td>Deliberate 5-second delay before the click fires.</td>
+            </tr>
+            <tr>
+              <td class="num">FAST CLICK</td>
+              <td><span class="num">4</span> <span class="cr">CREDITS</span></td>
+              <td>Instant click, no delay. Pricier on purpose.</td>
+            </tr>
+            <tr>
+              <td class="num">REWARDED AD</td>
+              <td><span class="num">+3</span> <span class="cr">CREDITS</span></td>
+              <td>Watch a short ad on the claim page and earn credits back.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="install">
+      <div class="container">
+        <div class="section-head">
+          <span class="section-num">03</span>
+          <h2 class="section-title">INSTALL</h2>
+        </div>
+        <div class="steps" style="grid-template-columns:1fr;">
+          <div class="step">
+            <p class="step-num">STEP 1</p>
+            <h3 class="step-title">ADD TO CHROME</h3>
+            <p>Install the extension from the Chrome Web Store in under a minute.</p>
+          </div>
+          <div class="step">
+            <p class="step-num">STEP 2</p>
+            <h3 class="step-title">OPEN A CLASS</h3>
+            <p>Load any MCQ window. AutoMCQ detects the answer options automatically.</p>
+          </div>
+          <div class="step">
+            <p class="step-num">STEP 3</p>
+            <h3 class="step-title">PICK &amp; RELAX</h3>
+            <p>Choose your answer and mode. The click lands on schedule.</p>
+          </div>
+        </div>
+        <p style="margin-top:2rem;">
+          <a class="btn btn-primary" href="https://chrome.google.com/webstore" target="_blank" rel="noopener">GET THE EXTENSION FROM THE WEB STORE</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-head">
+          <span class="section-num">04</span>
+          <h2 class="section-title">FAQ</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary><span class="q-num">Q1</span> Is this against my platform's terms?</summary>
+            <p class="a">Possibly. AutoMCQ automates clicks on test-prep platforms, and many of those platforms prohibit automation in their terms. Use it at your own discretion &mdash; your account and your school's rules are your responsibility.</p>
+          </details>
+          <details>
+            <summary><span class="q-num">Q2</span> Is it safe? Can it see my answers?</summary>
+            <p class="a">It never reads or sends question text, answers, or any other page content. It only clicks the option you chose. The only data stored is a random device ID in your browser and your credit balance on the server.</p>
+          </details>
+          <details>
+            <summary><span class="q-num">Q3</span> How do credits work?</summary>
+            <p class="a">A normal click costs 1 credit and fires after a 5-second delay. A fast click costs 4 credits and fires instantly. Watch a rewarded ad to earn 3 credits. Every change is recorded on a server-side ledger you can view.</p>
+          </details>
+          <details>
+            <summary><span class="q-num">Q4</span> Where is my data stored?</summary>
+            <p class="a">A random device ID lives in your browser's local storage; your device ID and credit balance live on the AutoMCQ server. No personal information is collected. See the <a href="privacy.html">privacy policy</a> for the full picture.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="foot">
+        <a class="wordmark" href="index.html">AUTOM<span class="pen">CQ</span></a>
+        <nav aria-label="Footer">
+          <a href="claim.html">CLAIM CREDITS</a>
+          <a href="privacy.html">PRIVACY POLICY</a>
+        </nav>
+      </div>
+      <p class="foot-note">&copy; 2026 AutoMCQ &middot; Use at your own discretion per your platform's rules &middot; Built for students who'd rather study than click.</p>
+    </div>
+  </footer>
+
+  <script src="js/shared.js"></script>
+  <script src="js/landing.js"></script>
+</body>
+</html>
