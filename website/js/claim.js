@@ -1,6 +1,6 @@
 "use strict"
 
-const AD_SECONDS = 15
+const AD_SECONDS = 25
 const AD_REWARD = 3
 const BALANCE_BUBBLES = 12
 const HEADER_BUBBLES = 8
@@ -102,6 +102,12 @@ function setApiError(err) {
   openManualLink()
 }
 
+function setCooldownError(err) {
+  setStatus("AD COOLDOWN", "stamp--off")
+  $("#deviceState").textContent = err.message
+  $("#deviceState").className = "device-meta"
+}
+
 function applyBalance(count) {
   state.balance = count
   state.balanceGrid.setFilled(count)
@@ -175,12 +181,6 @@ function bindEvents() {
   $("#adClose").addEventListener("click", closeAdModal)
   $("#adCancel").addEventListener("click", closeAdModal)
   $("#adClaim").addEventListener("click", claimReward)
-  $("#adModal").addEventListener("click", (e) => {
-    if (e.target.id === "adModal") closeAdModal()
-  })
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeAdModal()
-  })
 
   $("#manualLinkForm").addEventListener("submit", (e) => {
     e.preventDefault()
@@ -208,7 +208,7 @@ function openAdModal() {
   const hintEl = $("#adHint")
   const claimBtn = $("#adClaim")
 
-  claimBtn.hidden = true
+  claimBtn.disabled = true
   hintEl.textContent = "WATCHING\u2026"
   timerEl.textContent = remaining
 
@@ -219,7 +219,7 @@ function openAdModal() {
       window.clearInterval(state.adTimer)
       state.adTimer = null
       hintEl.textContent = "AD COMPLETE \u2014 CREDIT READY"
-      claimBtn.hidden = false
+      claimBtn.disabled = false
       claimBtn.focus()
     }
   }, 1000)
@@ -233,7 +233,7 @@ function closeAdModal() {
     state.adTimer = null
   }
   $("#adModal").classList.remove("is-open")
-  $("#adClaim").hidden = true
+  $("#adClaim").disabled = true
 }
 
 async function claimReward() {
@@ -250,7 +250,11 @@ async function claimReward() {
       "*"
     )
   } catch (err) {
-    setApiError(err)
+    if (err.status === 429) {
+      setCooldownError(err)
+    } else {
+      setApiError(err)
+    }
     closeAdModal()
   } finally {
     btn.disabled = false

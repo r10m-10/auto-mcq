@@ -3,7 +3,7 @@
   "permission": {
     "edit": {
       "*": "deny",
-      "website/**": "deny",
+      "website/**": "allow",
       "backend/routers/**": "allow",
       "backend/tests/**": "allow",
       "extension/**": "deny",
