@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "AutoMCQ",
+  "version": "1.0.0",
+  "description": "Web extension for your Vedantu live quizzes that automatically selects the chosen quiz option when it appears, as fast as possible, simulating a physical click.",
+
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+
+  "host_permissions": [
+    "*://*.vedantu.com/*",
+    "https://automcq.reyaanshsharma.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.vedantu.com/*"
+      ],
+      "js": [
+        "ved.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "AutoMCQ"
+  }
+}

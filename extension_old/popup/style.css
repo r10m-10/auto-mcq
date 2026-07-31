@@ -1,0 +1,248 @@
+html, body {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+html {
+    margin: 0;
+}
+
+* {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+body {
+    width: 300px;
+    box-sizing: border-box;
+    margin: 0;
+}
+
+h1{
+    margin-top: 48px;
+    margin-bottom: 5px;
+    font-size: 36px;
+}
+
+.popup-content {
+    position: relative;
+}
+
+.popup-content.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.credits-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #f0f2f5;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 16px;
+    color: #333;
+    white-space: nowrap;
+    z-index: 1;
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.balance {
+    font-size: 14px;
+    color: #555;
+    margin-top: 4px;
+}
+
+.credits-balance {
+    font-weight: 700;
+    color: #007bff;
+}
+
+.mode-selector-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.mode-selector {
+    display: flex;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 2px solid #007bff;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 8px 22px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: #007bff;
+    transition: all 0.2s;
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.mode-btn.active {
+    background: #007bff;
+    color: white;
+}
+
+.mode-btn:not(.active):hover {
+    background: rgba(0, 123, 255, 0.1);
+}
+
+.info-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: calc(100% + 8px);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #007bff;
+    font-size: 20px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.info-btn:focus-visible {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.tooltip {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    margin-bottom: 8px;
+    background: #1a1a2e;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: nowrap;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 14px;
+    border: 6px solid transparent;
+    border-top-color: #1a1a2e;
+}
+
+.info-btn:is(:hover, :focus, :focus-within) .tooltip {
+    display: block;
+}
+
+.circle-btn {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 22px;
+}
+
+.circle-btn:hover {
+    background-color: #0056b3;
+}
+
+.circle-btn.selected {
+    background-color: #ff8a51;
+}
+
+.McqGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+}
+
+.status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.status h3 {
+    font-size: 16px;
+}
+
+.cur-status {
+    font-weight: 700;
+}
+
+hr {
+    margin-top: 25px;
+}
+
+.toast-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+
+.toast-overlay.visible {
+    display: flex;
+}
+
+.toast {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    max-width: 260px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    position: relative;
+}
+
+.toast-message {
+    font-size: 16px;
+    color: #333;
+    line-height: 1.6;
+    display: block;
+    white-space: pre-line;
+}
+
+.toast-close {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    line-height: 1;
+}
+
+.toast-close:hover {
+    color: #333;
+}

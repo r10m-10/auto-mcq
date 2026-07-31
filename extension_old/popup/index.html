@@ -13,12 +13,6 @@
 </head>
 
 <body>
-    <button id="extensionToggle" class="power-btn" aria-label="Toggle AutoMCQ" aria-pressed="true" title="Toggle AutoMCQ">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
-            <path d="M12 3v8"/>
-            <path d="M6.2 6.6a7.5 7.5 0 1 0 11.6 0"/>
-        </svg>
-    </button>
     <div class="popup-content" id="popupContent">
         <span class="credits-badge">Credits: <span class="credits-balance">—</span></span>
         <div class="main">
@@ -29,8 +23,12 @@
                     <button class="mode-btn active" data-mode="normal">Normal</button>
                     <button class="mode-btn" data-mode="fast">Fast</button>
                 </div>
-                <button class="info-btn" aria-label="Show mode details" aria-haspopup="dialog" aria-controls="infoOverlay" tabindex="0">
+                <button class="info-btn" aria-label="Show mode details" tabindex="0">
                     <span class="info-icon" aria-hidden="true">&#8505;</span>
+                    <span class="tooltip" role="tooltip">
+                        <b>Normal</b> &mdash; 5s delay, costs 1 credit<br>
+                        <b>Fast</b> &mdash; instant click, costs 4 credits
+                    </span>
                 </button>
             </div>
 
@@ -50,20 +48,17 @@
         </div>
     </div>
 
-    <div class="info-overlay" id="infoOverlay" role="dialog" aria-modal="true" aria-label="Mode details">
-        <div class="info-card">
-            <p class="info-title">Mode details</p>
-            <p class="info-line"><b>Normal</b> &mdash; 5s delay, costs 1 credit</p>
-            <p class="info-line"><b>Fast</b> &mdash; instant click, costs 4 credits</p>
-        </div>
-    </div>
-
     <hr>
     <div class="status">
         <h3>STATUS: <span class="cur-status">ACTIVE</span></h3>
+        <div class="pico">
+            <fieldset>
+                <label>
+                    <input type="checkbox" id="extensionToggle" role="switch" checked />
+                </label>
+            </fieldset>
+        </div>
     </div>
-
-    <button class="claim-btn" id="claimBtn">CLAIM CREDITS &rarr;</button>
     <script src="script.js"></script>
 </body>
 
