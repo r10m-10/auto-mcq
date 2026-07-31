@@ -35,11 +35,11 @@
             </h1>
             <p class="hero-lede reveal" style="--d:0.2s">AutoMCQ watches your MCQ window and fires the answer you choose &mdash; on time, every time. Earn credits by watching short ads; spend them to arm a click.</p>
             <div class="hero-cta reveal" style="--d:0.32s">
-              <a class="btn btn-primary" href="https://chrome.google.com/webstore" target="_blank" rel="noopener">GET THE EXTENSION</a>
+              <button class="btn btn-primary" type="button" data-store-chooser>GET THE EXTENSION</button>
               <a class="btn btn-outline" href="claim.html">CLAIM CREDITS</a>
             </div>
             <div class="cost-strip reveal" style="--d:0.44s">
-              <span class="cost-item">NORMAL &middot; 1 CR &middot; 5S DELAY</span>
+              <span class="cost-item">NORMAL &middot; 1 CR &middot; DELAYED</span>
               <span class="cost-item">FAST &middot; 4 CR &middot; INSTANT</span>
             </div>
           </div>
@@ -60,7 +60,7 @@
           <div class="step">
             <p class="step-num">STEP 1</p>
             <h3 class="step-title">INSTALL</h3>
-            <p>Add AutoMCQ to your browser from the Chrome Web Store. No account, no email.</p>
+            <p>Add AutoMCQ to your browser from either Chrome Web Store or Firefox Add-Ons. No account, no email.</p>
           </div>
           <div class="step">
             <p class="step-num">STEP 2</p>
@@ -99,12 +99,12 @@
             <tr>
               <td class="num">NORMAL CLICK</td>
               <td><span class="num">1</span> <span class="cr">CREDIT</span></td>
-              <td>Deliberate 5-second delay before the click fires.</td>
+              <td>Few seconds of delay before the click fires.</td>
             </tr>
             <tr>
               <td class="num">FAST CLICK</td>
               <td><span class="num">4</span> <span class="cr">CREDITS</span></td>
-              <td>Instant click, no delay. Pricier on purpose.</td>
+              <td>Instant click, no delay.</td>
             </tr>
             <tr>
               <td class="num">REWARDED AD</td>
@@ -125,8 +125,8 @@
         <div class="steps" style="grid-template-columns:1fr;">
           <div class="step">
             <p class="step-num">STEP 1</p>
-            <h3 class="step-title">ADD TO CHROME</h3>
-            <p>Install the extension from the Chrome Web Store in under a minute.</p>
+            <h3 class="step-title">PICK YOUR BROWSER</h3>
+            <p>Choose Chrome or Firefox from the store and add the extension in under a minute.</p>
           </div>
           <div class="step">
             <p class="step-num">STEP 2</p>
@@ -140,7 +140,7 @@
           </div>
         </div>
         <p style="margin-top:2rem;">
-          <a class="btn btn-primary" href="https://chrome.google.com/webstore" target="_blank" rel="noopener">GET THE EXTENSION FROM THE WEB STORE</a>
+          <button class="btn btn-primary" type="button" data-store-chooser>GET THE EXTENSION FROM THE WEB STORE</button>
         </p>
       </div>
     </section>
@@ -185,6 +185,29 @@
       <p class="foot-note">&copy; 2026 AutoMCQ &middot; Use at your own discretion per your platform's rules &middot; Built for students who'd rather study than click.</p>
     </div>
   </footer>
+
+  <div class="modal-backdrop" id="storeModal" role="dialog" aria-modal="true" aria-labelledby="storeTitle">
+    <div class="modal modal--chooser">
+      <div class="modal-head">
+        <span id="storeTitle">CHOOSE YOUR BROWSER</span>
+        <button class="modal-close" id="storeClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="store-grid">
+        <button class="store-card" type="button" data-store="chrome">
+          <img class="store-logo" src="images/chrome.svg" alt="" width="44" height="44">
+          <span class="store-name">CHROME</span>
+          <span class="store-sub">CHROME WEB STORE</span>
+          <span class="store-note">Also works in Edge, Brave &amp; Opera</span>
+        </button>
+        <button class="store-card" type="button" data-store="firefox">
+          <img class="store-logo" src="images/firefox.svg" alt="" width="44" height="44">
+          <span class="store-name">FIREFOX</span>
+          <span class="store-sub">FIREFOX ADD-ONS</span>
+          <span class="store-note">Also works in Firefox for Android</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/shared.js"></script>
   <script src="js/landing.js"></script>

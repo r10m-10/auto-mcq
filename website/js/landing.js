@@ -1,5 +1,12 @@
 "use strict"
 
+// TODO(store-urls): replace with the real listing URLs once the extension is
+// published to each store. Current values are store search/landing pages.
+const STORE_URLS = {
+  chrome: "https://chrome.google.com/webstore",
+  firefox: "https://addons.mozilla.org/en-US/firefox/",
+}
+
 const HERO_QUESTIONS = 4
 const HERO_OPTIONS = ["A", "B", "C", "D"]
 const HERO_PREFILL = [
@@ -68,8 +75,50 @@ function prefillHero() {
   })
 }
 
+function buildStoreChooser() {
+  const modal = document.getElementById("storeModal")
+  if (!modal) return
+
+  const lastFocus = { el: null }
+
+  function open() {
+    lastFocus.el = document.activeElement
+    modal.classList.add("is-open")
+    const first = modal.querySelector(".store-card")
+    if (first) first.focus()
+  }
+
+  function close() {
+    modal.classList.remove("is-open")
+    if (lastFocus.el && document.contains(lastFocus.el)) lastFocus.el.focus()
+  }
+
+  document.querySelectorAll("[data-store-chooser]").forEach((btn) => {
+    btn.addEventListener("click", open)
+  })
+
+  modal.querySelectorAll(".store-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const store = card.dataset.store
+      if (STORE_URLS[store]) {
+        window.open(STORE_URLS[store], "_blank", "noopener")
+      }
+      close()
+    })
+  })
+
+  document.getElementById("storeClose").addEventListener("click", close)
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close()
+  })
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("is-open")) close()
+  })
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   ensurePencilDefs()
   buildHeroSheet()
   prefillHero()
+  buildStoreChooser()
 })
