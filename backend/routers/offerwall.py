@@ -16,10 +16,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
-try:  # launched as `uvicorn main:app`
-    from main import get_db, grant_credits, GrantRequest, GrantResponse
-except ImportError:  # launched as `python main.py` (module is __main__)
-    from __main__ import get_db, grant_credits, GrantRequest, GrantResponse
+from app.credits import grant_credits, GrantRequest, GrantResponse
+from app.db import get_db
 
 router = APIRouter()
 

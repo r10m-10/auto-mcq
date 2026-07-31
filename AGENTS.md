@@ -9,24 +9,28 @@ deployed on a Hack Club Nest VPS behind Caddy at automcq.reyaanshsharma.com.
 
 ## Repo layout
 - `extension/` — the browser extension (popup UI, content scripts). DO NOT TOUCH.
-- `backend/main.py` — the entire current backend: all live endpoints
-  (POST /link-device, GET /balance, POST /consume-click, POST /grant,
-  GET /history) plus grant/consume logic, defined directly as route
-  handlers in this one file. This is deployed and running in production
-  via systemd on r10. Treat it as entirely read-only — do not edit it,
-  even additively. There is no `backend/app/` package, despite what an
-  earlier version of this file said.
-- `backend/routers/` — NEW. Where new routers/endpoints get added, as
-  separate files that import and call functions from `main.py` rather
-  than duplicating them. Wiring a new router into production requires
-  adding one line (`app.include_router(...)`) to `main.py` — since that
-  file is off-limits to you, write the router fully, then stop and tell
-  me it's ready to wire; I'll add that one line myself.
-- `backend/tests/` — NEW. `pytest` and `httpx` are not yet installed in
-  the venv — installing them there is fine; do not touch
-  `requirements.txt` without asking first.
-- `website/` — NEW. Companion website (claim page, landing page). This is
-  primarily your workspace for this phase.
+- `backend/main.py` — thin entry point only: `from app.main import app` plus a
+  `__main__` uvicorn block, so `uvicorn main:app` and `python main.py` both
+  work unchanged. This is what systemd runs on r10.
+- `backend/app/` — the FastAPI package:
+  - `app/main.py` — the `FastAPI()` app instance, `init_db()`, and the
+    `include_router(...)` calls (device, credits, offerwall).
+  - `app/models.py` — the Pydantic request/response models.
+  - `app/db.py` — `DB_PATH`, `get_db()`, `init_db()` (schema).
+  - `app/credits.py` — the `grant_credits` / `consume_click` credit ledger logic.
+  - `app/routers/device.py` — link-device, balance endpoints.
+  - `app/routers/credits.py` — consume-click, grant, history endpoints.
+  The tested, deployed credit ledger and device-linking logic lives in these
+  files; treat them as read-only reference.
+- `backend/routers/` — where NEW routers/endpoints get added, as separate
+  files that import and call functions from `app.credits` / `app.db` rather
+  than duplicating them. Wiring a new router into production requires adding
+  one line (`app.include_router(...)`) to `backend/app/main.py` — since that
+  file is off-limits to you, write the router fully, then stop and tell me
+  it's ready to wire; I'll add that one line myself.
+- `backend/tests/` — pytest suite. `pytest` and `httpx` live in the venv
+  (not in `requirements.txt` — do not touch it without asking first).
+- `website/` — companion website (landing, claim, privacy pages).
 
 If anything else in this repo doesn't match what this file describes,
 stop and tell me the discrepancy before working around it — don't guess
@@ -36,11 +40,12 @@ and proceed.
 1. **Never edit anything under `extension/`.** Not even formatting, not even
    a typo fix. If the extension needs a change, stop and tell me — I'll do
    it myself or open a separate session for it.
-2. **Never edit `backend/main.py`.** It is the entire deployed backend:
-   the live endpoints (POST /link-device, GET /balance,
-   POST /consume-click, POST /grant, GET /history) and the grant/consume
-   credit ledger logic, defined directly as route handlers in this one
-   file. Treat it as read-only reference — do not edit it, even additively.
+2. **Never edit the deployed backend logic or its assembly:**
+   `backend/main.py`, `backend/app/main.py`, `backend/app/models.py`,
+   `backend/app/db.py`, `backend/app/credits.py`,
+   `backend/app/routers/device.py`, and `backend/app/routers/credits.py`.
+   These are the tested, deployed credit ledger and device-linking logic.
+   Treat them as read-only reference — do not edit them, even additively.
 3. **New backend functionality goes in new files only** — e.g.
    `backend/routers/website.py` or `backend/routers/offerwall.py` —
    that *import and call* existing functions (like the grant/consume logic)

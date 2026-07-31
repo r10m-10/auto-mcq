@@ -13,7 +13,3 @@ if str(BACKEND_DIR) not in sys.path:
 os.chdir(tempfile.mkdtemp(prefix="automcq_test_"))
 
 from main import app  # noqa: E402
-from routers.offerwall import router as offerwall_router  # noqa: E402
-
-# Mirrors the single wiring line the operator adds to backend/main.py.
-app.include_router(offerwall_router)

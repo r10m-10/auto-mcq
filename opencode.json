@@ -7,8 +7,9 @@
       "backend/routers/**": "allow",
       "backend/tests/**": "allow",
       "extension/**": "deny",
-      "backend/main.py": "deny",
-      "AGENTS.md": "allow"
+      "AGENTS.md": "allow",
+      "backend/app/**": "allow",
+      "backend/main.py": "allow"
     },
     "bash": {
       "*": "ask",
