@@ -122,3 +122,64 @@ function claimSandbox(deviceId) {
     body: JSON.stringify({ device_id: deviceId }),
   })
 }
+
+/* ---------- Theme (light / dark) ---------- */
+
+const THEME_KEY = "automcq_theme"
+
+function systemPrefersDark() {
+  return (
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  )
+}
+
+function storedTheme() {
+  try {
+    const value = window.localStorage.getItem(THEME_KEY)
+    return value === "light" || value === "dark" ? value : null
+  } catch (e) {
+    return null
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme)
+  const btn = document.getElementById("themeToggle")
+  if (btn) {
+    btn.setAttribute(
+      "aria-label",
+      theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+    )
+  }
+}
+
+function initTheme() {
+  applyTheme(storedTheme() || (systemPrefersDark() ? "dark" : "light"))
+
+  const btn = document.getElementById("themeToggle")
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const next =
+        document.documentElement.getAttribute("data-theme") === "dark"
+          ? "light"
+          : "dark"
+      applyTheme(next)
+      try {
+        window.localStorage.setItem(THEME_KEY, next)
+      } catch (e) {
+        /* ignore storage errors */
+      }
+    })
+  }
+
+  if (window.matchMedia) {
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", (e) => {
+        if (!storedTheme()) applyTheme(e.matches ? "dark" : "light")
+      })
+  }
+}
+
+initTheme()

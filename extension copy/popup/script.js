@@ -8,6 +8,9 @@ const toggle = document.getElementById("extensionToggle")
 const toastOverlay = document.getElementById("toastOverlay")
 const toastMessage = document.getElementById("toastMessage")
 const toastClose = document.getElementById("toastClose")
+const infoBtn = document.querySelector(".info-btn")
+const infoOverlay = document.getElementById("infoOverlay")
+const claimBtn = document.getElementById("claimBtn")
 
 let deviceId = null
 let creditsBalance = null
@@ -21,6 +24,9 @@ function getClickType() {
 function applyDisabledState(disabled) {
     popupContent.classList.toggle("disabled", disabled)
     status.textContent = disabled ? "DISABLED" : "ACTIVE"
+    toggle.classList.toggle("is-off", disabled)
+    toggle.setAttribute("aria-pressed", String(!disabled))
+    toggle.setAttribute("aria-label", disabled ? "Enable AutoMCQ" : "Disable AutoMCQ")
 }
 
 function showToast(msg) {
@@ -35,6 +41,32 @@ function hideToast() {
 toastClose.addEventListener("click", hideToast)
 toastOverlay.addEventListener("click", function (e) {
     if (e.target === toastOverlay) hideToast()
+})
+
+function showInfo() {
+    infoOverlay.classList.add("visible")
+}
+
+function hideInfo() {
+    infoOverlay.classList.remove("visible")
+}
+
+infoBtn.addEventListener("click", showInfo)
+infoOverlay.addEventListener("click", function (e) {
+    if (e.target === infoOverlay) hideInfo()
+})
+
+document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+        hideToast()
+        hideInfo()
+    }
+})
+
+claimBtn.addEventListener("click", async function () {
+    const stored = await chrome.storage.local.get("device_id")
+    const id = stored.device_id || deviceId
+    chrome.tabs.create({ url: `${API_BASE}/claim?device_id=${encodeURIComponent(id)}` })
 })
 
 function applyStateFromResponse(resp, resetStatus) {
@@ -72,7 +104,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     extensionEnabled = stored.extension_enabled !== false
-    toggle.checked = extensionEnabled
     applyDisabledState(!extensionEnabled)
 
     if (stored.selected_mode && ["normal", "fast"].includes(stored.selected_mode)) {
@@ -126,7 +157,7 @@ document.addEventListener("click", async function (event) {
     const cost = CLICK_COSTS[currentMode]
 
     if (creditsBalance === null) {
-        status.textContent = "Loading balance..."
+        status.textContent = "LOADING BALANCE..."
         btn.classList.remove("selected")
         setTimeout(() => { status.textContent = "ACTIVE" }, 2500)
         return
@@ -148,14 +179,14 @@ document.addEventListener("click", async function (event) {
             mode: clickType,
         })
     } catch {
-        status.textContent = "No tab to send to"
+        status.textContent = "INCORRECT TAB"
         btn.classList.remove("selected")
         setTimeout(() => { status.textContent = "ACTIVE" }, 2000)
     }
 })
 
-toggle.addEventListener("change", async function () {
-    extensionEnabled = toggle.checked
+toggle.addEventListener("click", async function () {
+    extensionEnabled = !extensionEnabled
     await chrome.storage.local.set({ extension_enabled: extensionEnabled })
     applyDisabledState(!extensionEnabled)
 

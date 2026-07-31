@@ -3,10 +3,11 @@
   "permission": {
     "edit": {
       "*": "deny",
-      "website/**": "allow",
+      "website/**": "deny",
       "backend/routers/**": "allow",
       "backend/tests/**": "allow",
       "extension/**": "deny",
+      "extension copy/**": "allow",
       "AGENTS.md": "allow",
       "backend/app/**": "allow",
       "backend/main.py": "allow"
