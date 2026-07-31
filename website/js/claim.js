@@ -57,11 +57,11 @@ function showUnlinked() {
 
 async function linkAndLoad(deviceId) {
   state.deviceId = deviceId
-  localStorage.setItem("automcq_device_id", deviceId)
   $("#deviceShort").textContent = deviceId.slice(0, 8).toUpperCase() + "\u2026"
 
   try {
     const balance = await getBalance(deviceId)
+    localStorage.setItem("automcq_device_id", deviceId)
     applyBalance(balance.credits_balance)
     setStatus("LINKED", "stamp--ok")
     $("#deviceState").textContent = deviceId
@@ -71,24 +71,20 @@ async function linkAndLoad(deviceId) {
     loadHistory(deviceId)
   } catch (err) {
     if (err.status === 404) {
-      showNotConnected(deviceId)
+      forgetDevice()
     } else {
       setApiError(err)
     }
   }
 }
 
-function showNotConnected(deviceId) {
-  setStatus("NOT CONNECTED", "stamp--off")
-  $("#deviceState").textContent =
-    "No device found with ID " +
-    deviceId.slice(0, 8).toUpperCase() +
-    "\u2026 on the credit server. It may have been reset \u2014 paste your current device ID from the extension popup below."
-  $("#deviceState").className = "device-meta"
-  $("#watchAdBtn").disabled = true
-  openManualLink()
-  $("#historyEmpty").textContent =
-    "No activity yet \u2014 link your device to see your ledger."
+function forgetDevice() {
+  state.deviceId = null
+  localStorage.removeItem("automcq_device_id")
+  const url = new URL(window.location.href)
+  url.searchParams.delete("device_id")
+  history.replaceState(null, "", url.pathname + url.search)
+  showUnlinked()
 }
 
 function setStatus(text, cls) {
