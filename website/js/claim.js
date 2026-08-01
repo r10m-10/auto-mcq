@@ -181,7 +181,7 @@ function closeManualLink() {
 }
 
 function bindEvents() {
-  $("#watchRewardBtn").addEventListener("click", openAdModal)
+  $("#watchRewardBtn").addEventListener("click", handleWatchReward)
   $("#rewardClose").addEventListener("click", closeAdModal)
   $("#rewardCancel").addEventListener("click", closeAdModal)
   $("#rewardClaim").addEventListener("click", claimReward)
@@ -197,6 +197,27 @@ function bindEvents() {
     }
     linkAndLoad(value)
   })
+}
+
+async function handleWatchReward() {
+  /* Respect the admin's offerwall_enabled switch: when ads are off, tell
+     the user there is nothing to watch instead of opening the ad modal.
+     Fail-open (default true) so a config fetch failure never blocks ads. */
+  let enabled = true
+  try {
+    const res = await fetch(API_BASE + "/config")
+    if (res.ok) {
+      const cfg = await res.json()
+      enabled = cfg.offerwall_enabled !== false
+    }
+  } catch (e) {
+    /* keep default */
+  }
+  if (!enabled) {
+    openNoticeModal("No ads to display right now. Check back later.", "NO ADS")
+    return
+  }
+  openAdModal()
 }
 
 function openAdModal() {
@@ -260,7 +281,9 @@ function closeAdModal() {
   $("#rewardClaim").disabled = true
 }
 
-function openNoticeModal() {
+function openNoticeModal(body, title) {
+  if (body) $("#noticeBody").textContent = body
+  if (title) $("#noticeTitle").textContent = title
   $("#noticeModal").classList.add("is-open")
   $("#noticeClose").focus()
 }

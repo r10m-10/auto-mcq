@@ -27,8 +27,29 @@ window.addEventListener("message", function (event) {
         balance: data.balance,
     })
 
-    showSponsorCard(data.delta)
+    /* Respect the admin's sponsor_overlay_enabled switch. The claim is
+       always forwarded (balance sync must keep working); only the overlay
+       is skipped when ads are turned off. On any config fetch failure the
+       overlay still shows (fail-open) so a network blip never blocks the
+       card for the user. */
+    sponsorOverlayEnabled().then(function (enabled) {
+        if (enabled) showSponsorCard(data.delta)
+    })
 })
+
+function sponsorOverlayEnabled() {
+    return fetch(API_BASE + "/config")
+        .then(function (res) {
+            if (!res.ok) return { sponsor_overlay_enabled: true }
+            return res.json()
+        })
+        .then(function (cfg) {
+            return cfg.sponsor_overlay_enabled !== false
+        })
+        .catch(function () {
+            return true
+        })
+}
 
 function showSponsorCard(delta) {
     if (document.getElementById("automcq-sponsor-overlay")) return

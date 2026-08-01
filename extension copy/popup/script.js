@@ -31,6 +31,21 @@ let deviceId = null
 let creditsBalance = null
 let currentMode = "normal"
 let extensionEnabled = true
+let sponsorCardEnabled = true
+
+/* Respect the admin's sponsor_card_enabled switch: when ads are off, the
+   popup sponsor card never appears. Fail-open (default true) so a config
+   fetch failure never hides a card that should show. */
+async function loadSponsorCardSetting() {
+    try {
+        const res = await fetch(API_BASE + "/config")
+        if (!res.ok) return
+        const cfg = await res.json()
+        sponsorCardEnabled = cfg.sponsor_card_enabled !== false
+    } catch {
+        /* keep default */
+    }
+}
 
 function getClickType() {
     return currentMode === "fast" ? "premium_click" : "normal_click"
@@ -189,6 +204,7 @@ resetConfirmBtn.addEventListener("click", async function () {
 /* ---------- Sponsor card ---------- */
 
 function showSponsor(claim) {
+    if (!sponsorCardEnabled) return
     sponsorDelta.textContent = String(claim.delta)
     sponsorOverlay.classList.add("visible")
 }
@@ -241,6 +257,7 @@ function applyStateFromResponse(resp, resetStatus) {
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
+    await loadSponsorCardSetting()
     const stored = await chrome.storage.local.get(["device_id", "extension_enabled", "selected_mode", THEME_KEY, "last_claim"])
 
     const manifestVersion = chrome.runtime.getManifest().version
