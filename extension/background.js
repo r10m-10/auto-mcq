@@ -2,6 +2,14 @@ const API_BASE = "https://automcq.reyaanshsharma.com"
 
 chrome.runtime.onMessage.addListener(async function (message, sender, sendResponse) {
     if (message.action === "claim") {
+        /* Respect the admin's sponsor_card_enabled switch, which the content
+           script forwards on every claim. When cards are off, no pending
+           claim is stored or accumulated, so toggling the switch back on can
+           never resurrect an old redemption. */
+        if (message.sponsorCardEnabled === false) {
+            await chrome.storage.local.remove("last_claim")
+            return
+        }
         // Accumulate into any pending claim so multiple ads (e.g. two +3
         // claims = +6) show as one total until the popup card is closed.
         // dismissSponsor() clears last_claim, so the next claim starts fresh.

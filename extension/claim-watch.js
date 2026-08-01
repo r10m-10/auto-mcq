@@ -21,33 +21,43 @@ window.addEventListener("message", function (event) {
     const data = event.data
     if (!data || data.type !== "automcq-claim") return
 
-    chrome.runtime.sendMessage({
-        action: "claim",
-        delta: data.delta,
-        balance: data.balance,
-    })
+    /* Fetch the ad config once and apply every switch:
+       - sponsor_card_enabled → passed to the background so the popup card
+         is only stored/accumulated while cards are allowed. When cards are
+         off, nothing is stored, so no stale claim can resurface later.
+       - sponsor_overlay_enabled → skip the in-page overlay when off.
+       On a config fetch failure everything stays on (fail-open) so a
+       network blip never blocks a card the user should see. */
+    fetchAdConfig().then(function (cfg) {
+        const cardEnabled = cfg.sponsor_card_enabled !== false
+        const overlayEnabled = cfg.sponsor_overlay_enabled !== false
 
-    /* Respect the admin's sponsor_overlay_enabled switch. The claim is
-       always forwarded (balance sync must keep working); only the overlay
-       is skipped when ads are turned off. On any config fetch failure the
-       overlay still shows (fail-open) so a network blip never blocks the
-       card for the user. */
-    sponsorOverlayEnabled().then(function (enabled) {
-        if (enabled) showSponsorCard(data.delta)
+        chrome.runtime.sendMessage({
+            action: "claim",
+            delta: data.delta,
+            balance: data.balance,
+            sponsorCardEnabled: cardEnabled,
+        })
+
+        if (overlayEnabled) {
+            showSponsorCard(data.delta)
+        } else {
+            /* No overlay is going to render, so the page must not wait out
+               its 4s fallback timer — tell it the (skipped) sponsor card is
+               done so the "+N CREDITS EARNED" stamp plays immediately. */
+            window.postMessage({ type: "automcq-sponsor-closed" }, "*")
+        }
     })
 })
 
-function sponsorOverlayEnabled() {
+function fetchAdConfig() {
     return fetch(API_BASE + "/config")
         .then(function (res) {
-            if (!res.ok) return { sponsor_overlay_enabled: true }
+            if (!res.ok) return {}
             return res.json()
         })
-        .then(function (cfg) {
-            return cfg.sponsor_overlay_enabled !== false
-        })
         .catch(function () {
-            return true
+            return {}
         })
 }
 

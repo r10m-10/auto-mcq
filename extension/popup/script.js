@@ -34,14 +34,18 @@ let extensionEnabled = true
 let sponsorCardEnabled = true
 
 /* Respect the admin's sponsor_card_enabled switch: when ads are off, the
-   popup sponsor card never appears. Fail-open (default true) so a config
-   fetch failure never hides a card that should show. */
+   popup sponsor card never appears, and any pending claim is dropped so it
+   can't resurface if the switch is later turned back on. Fail-open (default
+   true) so a config fetch failure never hides a card that should show. */
 async function loadSponsorCardSetting() {
     try {
         const res = await fetch(API_BASE + "/config")
         if (!res.ok) return
         const cfg = await res.json()
         sponsorCardEnabled = cfg.sponsor_card_enabled !== false
+        if (!sponsorCardEnabled) {
+            await chrome.storage.local.remove("last_claim")
+        }
     } catch {
         /* keep default */
     }
