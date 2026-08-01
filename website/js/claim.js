@@ -14,6 +14,7 @@ const state = {
   adTimer: null,
   adRemaining: 0,
   pendingFlash: null,
+  noticeFromTabLeave: false,
 }
 
 function $(sel) {
@@ -184,6 +185,8 @@ function bindEvents() {
   $("#rewardClose").addEventListener("click", closeAdModal)
   $("#rewardCancel").addEventListener("click", closeAdModal)
   $("#rewardClaim").addEventListener("click", claimReward)
+  $("#noticeClose").addEventListener("click", closeNoticeModal)
+  $("#noticeCloseBtn").addEventListener("click", closeNoticeModal)
 
   $("#manualLinkForm").addEventListener("submit", (e) => {
     e.preventDefault()
@@ -236,11 +239,15 @@ function startAdCountdown(hintText) {
 
 /* Leaving the tab cancels the ad entirely — switching away means the watch
    is wasted and the modal closes as if the user pressed CLOSE. They have to
-   watch the whole ad again, staying in the tab, to claim the credits. */
+   watch the whole ad again, staying in the tab, to claim the credits. When
+   they return, a popup explains why the ad closed. */
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state.adTimer) {
+    state.noticeFromTabLeave = true
     closeAdModal()
-    setStatus("AD CLOSED \u2014 STAY IN THIS TAB", "stamp--off")
+  } else if (!document.hidden && state.noticeFromTabLeave) {
+    state.noticeFromTabLeave = false
+    openNoticeModal()
   }
 })
 
@@ -251,6 +258,15 @@ function closeAdModal() {
   }
   $("#rewardModal").classList.remove("is-open")
   $("#rewardClaim").disabled = true
+}
+
+function openNoticeModal() {
+  $("#noticeModal").classList.add("is-open")
+  $("#noticeClose").focus()
+}
+
+function closeNoticeModal() {
+  $("#noticeModal").classList.remove("is-open")
 }
 
 async function claimReward() {
