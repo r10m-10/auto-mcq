@@ -234,12 +234,13 @@ function startAdCountdown(hintText) {
   }, 1000)
 }
 
-/* Leaving the tab resets the ad countdown — switching away must cost the
-   viewer the watch. The countdown restarts from the top so they can't
-   skip the ad by tabbing out and back. */
+/* Leaving the tab cancels the ad entirely — switching away means the watch
+   is wasted and the modal closes as if the user pressed CLOSE. They have to
+   watch the whole ad again, staying in the tab, to claim the credits. */
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state.adTimer) {
-    startAdCountdown("LEAVING RESETS THE AD \u2014 STAY IN THIS TAB")
+    closeAdModal()
+    setStatus("AD CLOSED \u2014 STAY IN THIS TAB", "stamp--off")
   }
 })
 
