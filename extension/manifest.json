@@ -28,6 +28,15 @@
         "ved.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://automcq.reyaanshsharma.com/*"
+      ],
+      "js": [
+        "claim-watch.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
 

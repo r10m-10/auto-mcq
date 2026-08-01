@@ -1,5 +1,6 @@
 "use strict"
 
+// EDIT-ME (testing): ad length in seconds. Set to 2-3 for quick tests instead of waiting 25s.
 const AD_SECONDS = 25
 const AD_REWARD = 3
 const BALANCE_BUBBLES = 12
@@ -11,6 +12,8 @@ const state = {
   balanceGrid: null,
   headerGrid: null,
   adTimer: null,
+  adRemaining: 0,
+  pendingFlash: null,
 }
 
 function $(sel) {
@@ -196,36 +199,49 @@ function bindEvents() {
 function openAdModal() {
   /* TODO(real-offerwall): mount the real offerwall / AdSense iframe here
      once the SDK accounts are approved. For now, a sandbox countdown. */
+  const modal = $("#rewardModal")
+  modal.classList.add("is-open")
+  startAdCountdown("WATCHING\u2026")
+  $("#rewardCancel").focus()
+}
+
+function startAdCountdown(hintText) {
   if (state.adTimer) {
     window.clearInterval(state.adTimer)
     state.adTimer = null
   }
-  const modal = $("#rewardModal")
-  modal.classList.add("is-open")
-
-  let remaining = AD_SECONDS
   const timerEl = $("#rewardTimer")
   const hintEl = $("#rewardHint")
   const claimBtn = $("#rewardClaim")
 
+  state.adRemaining = AD_SECONDS
+  // EDIT-ME (testing): set to false to keep CLAIM always enabled while the ad runs
   claimBtn.disabled = true
-  hintEl.textContent = "WATCHING\u2026"
-  timerEl.textContent = remaining
+  hintEl.textContent = hintText
+  timerEl.textContent = state.adRemaining
 
   state.adTimer = window.setInterval(() => {
-    remaining -= 1
-    timerEl.textContent = remaining
-    if (remaining <= 0) {
+    state.adRemaining -= 1
+    timerEl.textContent = state.adRemaining
+    if (state.adRemaining <= 0) {
       window.clearInterval(state.adTimer)
       state.adTimer = null
       hintEl.textContent = "AD COMPLETE \u2014 CREDIT READY"
+      // EDIT-ME (testing): set to true to enable CLAIM immediately when the ad ends
       claimBtn.disabled = false
       claimBtn.focus()
     }
   }, 1000)
-
-  $("#rewardCancel").focus()
 }
+
+/* Leaving the tab resets the ad countdown — switching away must cost the
+   viewer the watch. The countdown restarts from the top so they can't
+   skip the ad by tabbing out and back. */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.adTimer) {
+    startAdCountdown("LEAVING RESETS THE AD \u2014 STAY IN THIS TAB")
+  }
+})
 
 function closeAdModal() {
   if (state.adTimer) {
@@ -242,13 +258,13 @@ async function claimReward() {
   try {
     const res = await claimSandbox(state.deviceId)
     applyBalance(res.credits_balance)
-    flashEarned(AD_REWARD)
     closeAdModal()
     loadHistory(state.deviceId)
     window.postMessage(
       { type: "automcq-claim", delta: res.delta, balance: res.credits_balance },
       "*"
     )
+    deferEarnedFlash(AD_REWARD)
   } catch (err) {
     if (err.status === 429) {
       setCooldownError(err)
@@ -260,6 +276,40 @@ async function claimReward() {
     btn.disabled = false
   }
 }
+
+/* The "+3 CREDITS EARNED" stamp is held until the sponsor card overlay is
+   closed, so the sponsor creative gets full attention first. The overlay is
+   injected by the extension content script, which posts
+   "automcq-sponsor-closed" when the user presses CLOSE. If no card appears
+   (extension not installed), the fallback timer plays the stamp anyway. */
+let earnedFlashTimer = null
+
+function deferEarnedFlash(amount) {
+  if (earnedFlashTimer) {
+    window.clearTimeout(earnedFlashTimer)
+    earnedFlashTimer = null
+  }
+  state.pendingFlash = amount
+  earnedFlashTimer = window.setTimeout(playEarnedFlash, 4000)
+}
+
+function playEarnedFlash() {
+  if (earnedFlashTimer) {
+    window.clearTimeout(earnedFlashTimer)
+    earnedFlashTimer = null
+  }
+  if (state.pendingFlash) {
+    flashEarned(state.pendingFlash)
+    state.pendingFlash = null
+  }
+}
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window) return
+  const data = event.data
+  if (!data || data.type !== "automcq-sponsor-closed") return
+  playEarnedFlash()
+})
 
 function flashEarned(amount) {
   const existing = document.getElementById("earnedStamp")

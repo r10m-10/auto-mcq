@@ -526,6 +526,171 @@ hr { border: none; border-top: 1px solid var(--line); margin-top: 22px; }
     color: var(--pen-red);
 }
 
+/* ---------- Sponsor card (near-full-screen solid OMR sheet) ---------- */
+
+.sponsor-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    background: var(--paper);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.sponsor-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.sponsor-card {
+    width: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    background-color: var(--paper);
+    background-image:
+        linear-gradient(to right, transparent 95%, var(--grid-line) 95%),
+        repeating-linear-gradient(0deg, transparent, transparent 31px,
+            var(--grid-line-weak) 31px, var(--grid-line-weak) 32px);
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    box-shadow: 6px 6px 0 var(--shadow-color);
+    padding: 22px 18px 18px;
+    text-align: center;
+    position: relative;
+    color: var(--ink);
+    transform: scale(0.96) translateY(6px);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+}
+.sponsor-overlay.visible .sponsor-card {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+.sponsor-kicker {
+    margin: 0 0 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--pencil);
+}
+
+.sponsor-amount {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--pen-red);
+}
+
+.sponsor-heading {
+    margin: 6px 0 0;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--ink);
+}
+
+.sponsor-divider {
+    border: none;
+    border-top: 2px solid var(--ink);
+    margin: 16px 0;
+}
+
+.sponsor-by-label {
+    margin: 0 0 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--pencil);
+}
+
+.sponsor-ad {
+    position: relative;
+    border: 2px dashed var(--pen-red);
+    border-radius: 0;
+    padding: 18px 12px 12px;
+    margin-bottom: 14px;
+}
+
+.sponsor-ad-tag {
+    position: absolute;
+    top: -9px;
+    left: 8px;
+    background: var(--paper);
+    padding: 0 6px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--pen-red);
+}
+
+.sponsor-ad-name {
+    margin: 0 0 4px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+}
+
+.sponsor-ad-sub {
+    margin: 0 0 12px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--pencil);
+}
+
+.sponsor-ad-cta {
+    border: 2px solid var(--pen-red);
+    border-radius: 0;
+    background: var(--pen-red);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sponsor-ad-cta:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 rgba(193, 68, 14, 0.55);
+}
+
+.sponsor-close {
+    display: block;
+    width: 100%;
+    padding: 10px 0;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    font-size: 12px;
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    cursor: pointer;
+    background: transparent;
+    color: var(--ink);
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.sponsor-close:hover {
+    background: var(--ink);
+    color: var(--paper);
+}
+
 .toast-message {
     font-family: var(--font-mono);
     font-size: 13px;
