@@ -57,7 +57,7 @@ def hidden_client(monkeypatch):
 
 
 def _auth(token=TEST_TOKEN):
-    return {"Authorization": f"Bearer {token}"}
+    return {"X-Admin-Token": token}
 
 
 def _device_id() -> str:
@@ -94,9 +94,9 @@ def test_admin_api_requires_token(client):
 
 
 def test_admin_api_rejects_wrong_token(client):
-    bad = {"Authorization": "Bearer wrong-token"}
+    bad = {"X-Admin-Token": "wrong-token"}
     assert client.get("/admin/api/stats", headers=bad).status_code == 401
-    assert client.get("/admin/api/stats", headers={"Authorization": "Basic foo"}).status_code == 401
+    assert client.get("/admin/api/stats", headers={"X-Admin-Token": ""}).status_code == 401
 
 
 def test_admin_page_served_with_token(client):

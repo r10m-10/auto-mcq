@@ -7,10 +7,15 @@ Two auth layers, both fail closed:
   gate.
 
   Layer 2 (app): every /admin/api/* call must send
-  `Authorization: Bearer <ADMIN_TOKEN>`. The token comes from the
-  ADMIN_TOKEN env var, read at request time (so setting the env on the VPS
-  needs no code change). When ADMIN_TOKEN is unset, ALL /admin* routes
-  return 404 — the panel is completely invisible until configured.
+  `X-Admin-Token: <ADMIN_TOKEN>`. The token comes from the ADMIN_TOKEN
+  env var, read at request time (so setting the env on the VPS needs no
+  code change). When ADMIN_TOKEN is unset, ALL /admin* routes return 404
+  — the panel is completely invisible until configured.
+
+  Layer 2 deliberately uses a custom X-Admin-Token header instead of
+  Authorization: Bearer — Caddy's basic_auth owns the Authorization
+  header, and a Bearer token there would be rejected by Caddy before
+  ever reaching this backend.
 
   Tokens are compared in constant time to avoid timing leaks.
 
@@ -57,18 +62,24 @@ def _admin_token() -> str | None:
     return os.environ.get(ADMIN_TOKEN_ENV)
 
 
-def require_admin(authorization: str | None = Header(default=None)):
+def require_admin(x_admin_token: str | None = Header(default=None, alias="X-Admin-Token")):
     """Fail-closed gate for /admin/api/*.
 
     404 when ADMIN_TOKEN is unset (panel disabled), 401 on missing or
     wrong credentials. Constant-time comparison.
+
+    The token rides in a custom X-Admin-Token header rather than the
+    standard Authorization: Bearer header, because Caddy's basic_auth
+    (layer 1) owns the Authorization header — if this handler also used
+    it, the two layers would fight over the same header and Caddy would
+    reject every API call before it reached the backend.
     """
     expected = _admin_token()
     if not expected:
         raise HTTPException(status_code=404, detail="Not found")
-    if not authorization or not authorization.startswith("Bearer "):
+    if not x_admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    provided = authorization.removeprefix("Bearer ").strip()
+    provided = x_admin_token.strip()
     if not secrets.compare_digest(provided, expected):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
@@ -629,7 +640,7 @@ ADMIN_HTML = r"""<!DOCTYPE html>
       <div class="modal-head"><span>ADMIN TOKEN</span></div>
       <div class="modal-body">
         <p class="dim" style="margin-top:0">Paste the admin API token to unlock the panel. It stays in this tab&rsquo;s session memory.</p>
-        <div class="field"><label>Bearer token</label><input id="tokenInput" type="password" autocomplete="off"></div>
+        <div class="field"><label>Admin token</label><input id="tokenInput" type="password" autocomplete="off"></div>
       </div>
       <div class="modal-actions"><button class="btn btn-primary" id="unlockBtn">UNLOCK</button></div>
     </div>
@@ -660,7 +671,7 @@ ADMIN_HTML = r"""<!DOCTYPE html>
   async function api(path, opts) {
     const res = await fetch(API + path, Object.assign({}, opts, {
       headers: Object.assign({}, opts && opts.headers, {
-        "Authorization": "Bearer " + token,
+        "X-Admin-Token": token,
         "Content-Type": "application/json",
       }),
     }));
