@@ -2,10 +2,12 @@
 
 // EDIT-ME (testing): ad length in seconds. Set to 2-3 for quick tests instead of waiting 25s.
 // Overridden at runtime by the admin's offerwall_config.ad_seconds when reachable.
+// In video mode the video's own duration overrides this entirely.
 const AD_SECONDS = 25
 const AD_REWARD = 3
 const BALANCE_BUBBLES = 12
 const HEADER_BUBBLES = 8
+const RING_CIRCUMFERENCE = 2 * Math.PI * 52
 
 const state = {
   deviceId: null,
@@ -13,9 +15,11 @@ const state = {
   balanceGrid: null,
   headerGrid: null,
   adTimer: null,
+  adActive: false,
   adRemaining: 0,
   adSeconds: AD_SECONDS,
   adReward: AD_REWARD,
+  videoHandlers: null,
   pendingFlash: null,
   noticeFromTabLeave: false,
 }
@@ -228,7 +232,11 @@ async function handleWatchReward() {
   if (typeof cfg.ad_reward === "number" && cfg.ad_reward > 0) {
     state.adReward = cfg.ad_reward
   }
-  if (typeof cfg.ad_seconds === "number" && cfg.ad_seconds > 0) {
+  // Ad length lives on the offerwall slot config; fall back to the flat
+  // legacy key (derived server-side) if the slot doesn't carry it yet.
+  if (cfg.offerwall_config && typeof cfg.offerwall_config.ad_seconds === "number" && cfg.offerwall_config.ad_seconds > 0) {
+    state.adSeconds = cfg.offerwall_config.ad_seconds
+  } else if (typeof cfg.ad_seconds === "number" && cfg.ad_seconds > 0) {
     state.adSeconds = cfg.ad_seconds
   }
   applyRewardCopy(state.adReward)
@@ -255,34 +263,58 @@ function trackAd(eventType) {
 
 function openAdModal(slotCfg) {
   /* TODO(real-offerwall): mount the real offerwall / AdSense iframe here
-     once the SDK accounts are approved. For now, a sandbox countdown —
-     and if the admin has pasted third-party HTML for the offerwall slot,
-     it is rendered into the reward frame with the sandbox gate still
-     running around it as the anti-abuse layer. */
+     once the SDK accounts are approved. Three modes today:
+       - third_party: pasted HTML rendered into the reward frame, with the
+         sandbox gate still running around it as the anti-abuse layer.
+       - video:      an in-house MP4 (admin-supplied URL) plays; the ad
+         runs exactly as long as the video, and CLAIM unlocks on 'ended'.
+       - text:       the sandbox countdown player.
+     CLOSE/CANCEL stays enabled the whole time — the ring is informational;
+     you can cancel anytime without charge. */
   const modal = $("#rewardModal")
   modal.classList.add("is-open")
 
   const frame = $("#rewardAdFrame")
   const sandbox = $("#rewardSandbox")
-  if (slotCfg && slotCfg.source === "third_party" && slotCfg.third_party_html) {
+  const video = $("#rewardVideo")
+  state.adActive = true
+
+  const isThirdParty = slotCfg && slotCfg.source === "third_party" && slotCfg.third_party_html
+  const isVideo = slotCfg && slotCfg.source === "house" && slotCfg.ad_type === "video" && slotCfg.video_url
+
+  if (isThirdParty) {
     sandbox.style.display = "none"
     frame.style.display = "block"
     frame.innerHTML = slotCfg.third_party_html
-  } else {
+    startTextAd("WATCHING\u2026")
+  } else if (isVideo) {
     frame.style.display = "none"
     sandbox.style.display = "block"
+    video.style.display = "block"
+    startVideoAd(slotCfg.video_url)
+  } else {
+    frame.style.display = "none"
+    video.style.display = "none"
+    sandbox.style.display = "block"
+    startTextAd("WATCHING\u2026")
   }
 
-  startAdCountdown("WATCHING\u2026")
   $("#rewardCancel").focus()
   trackAd("impression")
 }
 
-function startAdCountdown(hintText) {
-  if (state.adTimer) {
-    window.clearInterval(state.adTimer)
-    state.adTimer = null
-  }
+/* Circular countdown ring: full at the start, depleting to empty as the ad
+   runs. Purely informational — CLOSE stays enabled the whole time. */
+function updateRing(totalSeconds, remaining) {
+  const ring = $("#rewardRing")
+  if (!ring) return
+  const progress = totalSeconds > 0 ? Math.max(0, Math.min(1, remaining / totalSeconds)) : 0
+  ring.style.strokeDasharray = String(RING_CIRCUMFERENCE)
+  ring.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - progress))
+}
+
+function startTextAd(hintText) {
+  stopAd()
   const timerEl = $("#rewardTimer")
   const hintEl = $("#rewardHint")
   const claimBtn = $("#rewardClaim")
@@ -292,10 +324,12 @@ function startAdCountdown(hintText) {
   claimBtn.disabled = true
   hintEl.textContent = hintText
   timerEl.textContent = state.adRemaining
+  updateRing(state.adSeconds, state.adRemaining)
 
   state.adTimer = window.setInterval(() => {
     state.adRemaining -= 1
     timerEl.textContent = state.adRemaining
+    updateRing(state.adSeconds, state.adRemaining)
     if (state.adRemaining <= 0) {
       window.clearInterval(state.adTimer)
       state.adTimer = null
@@ -307,12 +341,81 @@ function startAdCountdown(hintText) {
   }, 1000)
 }
 
+/* In-house MP4 mode. The video's own duration drives the countdown and the
+   ring; CLAIM unlocks when the video actually ends. If the video fails to
+   load, fall back to the text sandbox so the flow never dead-ends. */
+function startVideoAd(videoUrl) {
+  stopAd()
+  const video = $("#rewardVideo")
+  const timerEl = $("#rewardTimer")
+  const hintEl = $("#rewardHint")
+  const claimBtn = $("#rewardClaim")
+
+  claimBtn.disabled = true
+  hintEl.textContent = "WATCHING\u2026"
+  timerEl.textContent = "\u2014"
+  updateRing(0, 1)
+
+  const onLoaded = () => {
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      state.adSeconds = Math.ceil(video.duration)
+      state.adRemaining = state.adSeconds
+      timerEl.textContent = state.adRemaining
+      updateRing(state.adSeconds, state.adRemaining)
+    }
+  }
+  const onTime = () => {
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      state.adRemaining = Math.max(0, Math.ceil(video.duration - video.currentTime))
+      timerEl.textContent = state.adRemaining
+      updateRing(state.adSeconds, state.adRemaining)
+    }
+  }
+  const onEnded = () => {
+    state.adRemaining = 0
+    timerEl.textContent = 0
+    updateRing(state.adSeconds, 0)
+    hintEl.textContent = "AD COMPLETE \u2014 CREDIT READY"
+    claimBtn.disabled = false
+    claimBtn.focus()
+  }
+  const onError = () => {
+    video.style.display = "none"
+    startTextAd("WATCHING\u2026")
+  }
+
+  state.videoHandlers = { loadedmetadata: onLoaded, timeupdate: onTime, ended: onEnded, error: onError }
+  Object.entries(state.videoHandlers).forEach(([ev, fn]) => video.addEventListener(ev, fn))
+
+  video.muted = true
+  video.setAttribute("playsinline", "")
+  video.src = videoUrl
+  video.play().catch(() => {
+    hintEl.textContent = "PRESS PLAY TO WATCH THE AD"
+  })
+}
+
+function stopAd() {
+  if (state.adTimer) {
+    window.clearInterval(state.adTimer)
+    state.adTimer = null
+  }
+  const video = $("#rewardVideo")
+  if (state.videoHandlers) {
+    Object.entries(state.videoHandlers).forEach(([ev, fn]) => video.removeEventListener(ev, fn))
+    state.videoHandlers = null
+  }
+  video.pause()
+  video.removeAttribute("src")
+  video.load()
+}
+
 /* Leaving the tab cancels the ad entirely — switching away means the watch
    is wasted and the modal closes as if the user pressed CLOSE. They have to
    watch the whole ad again, staying in the tab, to claim the credits. When
    they return, a popup explains why the ad closed. */
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && state.adTimer) {
+  if (document.hidden && state.adActive) {
     state.noticeFromTabLeave = true
     closeAdModal(true)
   } else if (!document.hidden && state.noticeFromTabLeave) {
@@ -322,10 +425,8 @@ document.addEventListener("visibilitychange", () => {
 })
 
 function closeAdModal(fromTabLeave) {
-  if (state.adTimer) {
-    window.clearInterval(state.adTimer)
-    state.adTimer = null
-  }
+  stopAd()
+  state.adActive = false
   $("#rewardModal").classList.remove("is-open")
   $("#rewardClaim").disabled = true
   if (!fromTabLeave) trackAd("close")

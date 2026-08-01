@@ -188,12 +188,22 @@ class SlotConfigUpdate(BaseModel):
     frequency_every: int | None = Field(default=None, ge=1)
     min_view_seconds: int | None = Field(default=None, ge=0)
     auto_close_seconds: int | None = Field(default=None, ge=0)
+    ad_type: str | None = None
+    video_url: str | None = None
+    ad_seconds: int | None = Field(default=None, ge=1, le=600)
 
     @field_validator("source")
     @classmethod
     def _valid_source(cls, v: str | None) -> str | None:
         if v is not None and v not in ("house", "third_party"):
             raise ValueError("source must be 'house' or 'third_party'")
+        return v
+
+    @field_validator("ad_type")
+    @classmethod
+    def _valid_ad_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("text", "video"):
+            raise ValueError("ad_type must be 'text' or 'video'")
         return v
 
 
@@ -204,7 +214,6 @@ class ConfigUpdateRequest(BaseModel):
     overlay_config: SlotConfigUpdate | None = None
     card_config: SlotConfigUpdate | None = None
     offerwall_config: SlotConfigUpdate | None = None
-    ad_seconds: int | None = Field(default=None, ge=1, le=600)
     normal_cost: int | None = Field(default=None, ge=0, le=10000)
     fast_cost: int | None = Field(default=None, ge=0, le=10000)
     ad_reward: int | None = Field(default=None, ge=0, le=10000)
@@ -479,16 +488,6 @@ def admin_update_config(body: ConfigUpdateRequest):
                 (f"{slot_key}_config", json.dumps(merged)),
             )
 
-        # Plain config values.
-        if body.ad_seconds is not None:
-            conn.execute(
-                """
-                INSERT INTO config (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-                """,
-                ("ad_seconds", str(body.ad_seconds)),
-            )
-
         # Economy values live in the reward_config table (read at grant time).
         if body.normal_cost is not None:
             _write_reward(conn, "normal_click", body.normal_cost)
@@ -708,11 +707,25 @@ ADMIN_HTML = r"""<!DOCTYPE html>
 
   .field { margin-bottom: 1rem; }
   .field label { display: block; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--pencil); margin-bottom: 0.35rem; }
-  .field input, .field textarea {
+  .field input, .field textarea, .field select {
     width: 100%; padding: 0.6rem 0.8rem; font-family: var(--font-mono); font-size: 0.88rem;
     border: 2px solid var(--line-strong); border-radius: 0; background: var(--input-bg); color: var(--ink);
   }
-  .field input:focus, .field textarea:focus { outline: 3px solid var(--pen-red); outline-offset: 2px; }
+  .field input:focus, .field textarea:focus, .field select:focus { outline: 3px solid var(--pen-red); outline-offset: 2px; }
+  .field select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    padding-right: 2.4rem; cursor: pointer;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--pen-red) 50%),
+      linear-gradient(135deg, var(--pen-red) 50%, transparent 50%);
+    background-position:
+      calc(100% - 1.1rem) calc(50% - 2px),
+      calc(100% - 0.75rem) calc(50% - 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+  .field select:hover { border-color: var(--pen-red); }
+  .field select option { background: var(--input-bg); color: var(--ink); font-family: var(--font-sans); }
 
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(30,33,40,0.6); display: none;
@@ -763,6 +776,8 @@ ADMIN_HTML = r"""<!DOCTYPE html>
       <button class="tab-btn" data-tab="devices">DEVICES</button>
       <button class="tab-btn" data-tab="activity">ACTIVITY</button>
       <button class="tab-btn" data-tab="ads">ADS</button>
+      <button class="tab-btn" data-tab="rewards">REWARDS</button>
+      <button class="tab-btn" data-tab="admetrics">AD METRICS</button>
     </div>
 
     <section id="tab-overview">
@@ -789,18 +804,25 @@ ADMIN_HTML = r"""<!DOCTYPE html>
 
     <section id="tab-ads" style="display:none">
       <div id="slotCards"></div>
+    </section>
+
+    <section id="tab-rewards" style="display:none">
       <div class="card">
         <h3 class="card-title">REWARDS &amp; ECONOMY</h3>
+        <p class="dim" style="margin-top:-.5rem">Credit amounts applied across the product. Changes take effect immediately.</p>
         <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
           <div class="field"><label>Normal click cost</label><input id="normal_cost" type="number" min="0" autocomplete="off"></div>
           <div class="field"><label>Fast click cost</label><input id="fast_cost" type="number" min="0" autocomplete="off"></div>
           <div class="field"><label>Ad reward</label><input id="ad_reward" type="number" min="0" autocomplete="off"></div>
-          <div class="field"><label>Ad length (s)</label><input id="ad_seconds" type="number" min="1" autocomplete="off"></div>
         </div>
         <div class="modal-actions" style="padding:0"><button class="btn btn-primary" id="saveRewardsBtn">SAVE ECONOMY</button></div>
       </div>
+    </section>
+
+    <section id="tab-admetrics" style="display:none">
       <div class="card">
         <h3 class="card-title">AD METRICS</h3>
+        <p class="dim" style="margin-top:-.5rem">Impressions, clicks and closes per ad slot, tracked across the extension and claim page.</p>
         <div style="overflow-x:auto"><table id="adsMetricsTable"></table></div>
         <div id="adsMetricsChart" style="margin-top:1rem"></div>
       </div>
@@ -896,6 +918,7 @@ ADMIN_HTML = r"""<!DOCTYPE html>
     const loaders = {
       overview: loadOverview, devices: loadDevices,
       activity: loadActivity, ads: loadAds,
+      rewards: loadRewards, admetrics: loadAdMetrics,
     };
     (loaders[btn.dataset.tab] || loadOverview)();
   });
@@ -1019,11 +1042,32 @@ ADMIN_HTML = r"""<!DOCTYPE html>
 
   function slotCardHTML(slotKey, title, desc, cfg) {
     const thirdPartyField = slotKey === "offerwall"
-      ? `<div class="field"><label>Third-party HTML</label><textarea data-slot="${slotKey}" data-key="third_party_html" rows="5" spellcheck="false"></textarea></div>`
+      ? `<div class="field" data-ow-group="thirdparty"><label>Third-party HTML</label><textarea data-slot="${slotKey}" data-key="third_party_html" rows="5" spellcheck="false"></textarea></div>`
       : `<p class="dim" style="font-size:.8rem;margin:.5rem 0">Third-party code is offerwall-only for now &mdash; browser extensions block remote ad scripts.</p>`;
     const freqField = slotKey === "overlay"
       ? `<div class="field"><label>Frequency (every N claims)</label><input data-slot="${slotKey}" data-key="frequency_every" type="number" min="1" autocomplete="off"></div>`
       : "";
+    // Offerwall-only: ad content type (text countdown vs in-house MP4 video).
+    // When a video is attached, the video's own duration drives the ad
+    // length — the manual length field is hidden (video always wins).
+    const offerwallFields = slotKey === "offerwall"
+      ? `
+      <div class="field" data-ow-group="content"><label>Ad content</label>
+        <select data-slot="${slotKey}" data-key="ad_type" data-ow-adtype>
+          <option value="text" ${cfg.ad_type !== "video" ? "selected" : ""}>TEXT (countdown)</option>
+          <option value="video" ${cfg.ad_type === "video" ? "selected" : ""}>VIDEO (MP4)</option>
+        </select>
+      </div>
+      <div class="field" data-ow-group="video"><label>Video URL (.mp4)</label><input data-slot="${slotKey}" data-key="video_url" placeholder="https://cdn.example.com/ad.mp4" autocomplete="off"></div>
+      <div class="field" data-ow-group="length"><label>Ad length (seconds)</label><input data-slot="${slotKey}" data-key="ad_seconds" type="number" min="1" max="600" autocomplete="off"></div>
+      <p class="dim" data-ow-group="video" style="font-size:.8rem;margin-top:-.5rem">The ad runs exactly as long as the video &mdash; the length is taken from the file itself.</p>`
+      : "";
+    const minViewField = slotKey === "offerwall"
+      ? ""
+      : `<div class="field"><label>Min view (seconds, 0=off)</label><input data-slot="${slotKey}" data-key="min_view_seconds" type="number" min="0" autocomplete="off"></div>`;
+    const autoCloseField = slotKey === "offerwall"
+      ? ""
+      : `<div class="field"><label>Auto-close (seconds, 0=off)</label><input data-slot="${slotKey}" data-key="auto_close_seconds" type="number" min="0" autocomplete="off"></div>`;
     const srcSelected = (v) => cfg.source === v ? "selected" : "";
     return `<div class="card" data-slot="${slotKey}">
       <h3 class="card-title">${title}</h3>
@@ -1042,10 +1086,11 @@ ADMIN_HTML = r"""<!DOCTYPE html>
       <div class="field"><label>Ad subtitle</label><textarea data-slot="${slotKey}" data-key="ad_sub" rows="2"></textarea></div>
       <div class="field"><label>Ad URL</label><input data-slot="${slotKey}" data-key="ad_url" autocomplete="off"></div>
       <div class="field"><label>CTA label</label><input data-slot="${slotKey}" data-key="ad_cta" autocomplete="off"></div>
+      ${offerwallFields}
       ${thirdPartyField}
       ${freqField}
-      <div class="field"><label>Min view (seconds, 0=off)</label><input data-slot="${slotKey}" data-key="min_view_seconds" type="number" min="0" autocomplete="off"></div>
-      <div class="field"><label>Auto-close (seconds, 0=off)</label><input data-slot="${slotKey}" data-key="auto_close_seconds" type="number" min="0" autocomplete="off"></div>
+      ${minViewField}
+      ${autoCloseField}
       <div class="modal-actions" style="padding:0"><button class="btn btn-primary" data-save-slot="${slotKey}">SAVE ${title}</button></div>
     </div>`;
   }
@@ -1060,11 +1105,39 @@ ADMIN_HTML = r"""<!DOCTYPE html>
     return out;
   }
 
+  /* Offerwall card: reveal only the fields that make sense for the chosen
+     source (house vs third-party) and content type (text vs video). */
+  function applyOfferwallVisibility(slotKey) {
+    const card = document.querySelector(`.card[data-slot="${slotKey}"]`);
+    if (!card) return;
+    const group = (name) => card.querySelector(`[data-ow-group="${name}"]`);
+    const show = (name, on) => { const el = group(name); if (el) el.style.display = on ? "" : "none"; };
+    const source = card.querySelector('[data-key="source"]').value;
+    const adType = card.querySelector('[data-key="ad_type"]').value;
+    if (source === "third_party") {
+      show("content", false); show("video", false); show("length", true); show("thirdparty", true);
+    } else if (adType === "video") {
+      show("content", true); show("video", true); show("length", false); show("thirdparty", false);
+    } else {
+      show("content", true); show("video", false); show("length", true); show("thirdparty", false);
+    }
+  }
+
   async function loadAds() {
     const cfg = await api("/config");
     $("#slotCards").innerHTML = SLOT_META.map(([key, title, desc]) =>
       slotCardHTML(key, title, desc, cfg[key + "_config"])
     ).join("");
+
+    const offerwallCard = document.querySelector('.card[data-slot="offerwall"]');
+    if (offerwallCard) {
+      const toggle = () => applyOfferwallVisibility("offerwall");
+      const sourceSel = offerwallCard.querySelector('[data-key="source"]');
+      const adTypeSel = offerwallCard.querySelector('[data-key="ad_type"]');
+      if (sourceSel) sourceSel.addEventListener("change", toggle);
+      if (adTypeSel) adTypeSel.addEventListener("change", toggle);
+      applyOfferwallVisibility("offerwall");
+    }
 
     $$("[data-save-slot]").forEach(btn => {
       btn.addEventListener("click", async () => {
@@ -1077,12 +1150,13 @@ ADMIN_HTML = r"""<!DOCTYPE html>
         } catch (e) { banner(e.message, "err"); }
       });
     });
+  }
 
+  async function loadRewards() {
+    const cfg = await api("/config");
     $("#normal_cost").value = cfg.normal_cost;
     $("#fast_cost").value = cfg.fast_cost;
     $("#ad_reward").value = cfg.ad_reward;
-    $("#ad_seconds").value = cfg.ad_seconds;
-    loadAdsMetrics();
   }
 
   $("#saveRewardsBtn").addEventListener("click", async () => {
@@ -1091,16 +1165,15 @@ ADMIN_HTML = r"""<!DOCTYPE html>
         normal_cost: parseInt($("#normal_cost").value, 10),
         fast_cost: parseInt($("#fast_cost").value, 10),
         ad_reward: parseInt($("#ad_reward").value, 10),
-        ad_seconds: parseInt($("#ad_seconds").value, 10),
       };
       if (Object.values(body).some(v => !Number.isFinite(v))) throw new Error("Enter valid numbers.");
       const cfg = await api("/config", { method: "PUT", body: JSON.stringify(body) });
       banner("Economy saved.");
-      loadAds();
+      loadRewards();
     } catch (e) { banner(e.message, "err"); }
   });
 
-  async function loadAdsMetrics() {
+  async function loadAdMetrics() {
     try {
       const m = await api("/ads-metrics");
       const rows = m.slots.map(s =>

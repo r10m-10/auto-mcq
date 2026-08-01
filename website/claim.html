@@ -98,7 +98,14 @@
         <div id="rewardAdFrame" style="display:none"></div>
         <div id="rewardSandbox">
           <p class="reward-label">Advert &middot; AutoMCQ Ad Network (Sandbox)</p>
-          <p class="reward-timer" id="rewardTimer">25</p>
+          <video id="rewardVideo" class="reward-video" playsinline muted preload="metadata" style="display:none"></video>
+          <div class="reward-ring" aria-hidden="true">
+            <svg class="reward-ring-svg" viewBox="0 0 120 120">
+              <circle class="reward-ring-track" cx="60" cy="60" r="52"></circle>
+              <circle class="reward-ring-fg" id="rewardRing" cx="60" cy="60" r="52"></circle>
+            </svg>
+            <span class="reward-timer" id="rewardTimer">25</span>
+          </div>
           <p class="reward-hint" id="rewardHint">WATCHING&hellip;</p>
         </div>
       </div>

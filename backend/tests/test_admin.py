@@ -142,6 +142,9 @@ def test_public_config_shape(client):
             "frequency_every": 3,
             "min_view_seconds": 0,
             "auto_close_seconds": 0,
+            "ad_type": "text",
+            "video_url": "",
+            "ad_seconds": 25,
         },
         "card_config": {
             "enabled": True,
@@ -154,6 +157,9 @@ def test_public_config_shape(client):
             "frequency_every": 3,
             "min_view_seconds": 0,
             "auto_close_seconds": 0,
+            "ad_type": "text",
+            "video_url": "",
+            "ad_seconds": 25,
         },
         "offerwall_config": {
             "enabled": True,
@@ -166,6 +172,9 @@ def test_public_config_shape(client):
             "frequency_every": 3,
             "min_view_seconds": 0,
             "auto_close_seconds": 0,
+            "ad_type": "text",
+            "video_url": "",
+            "ad_seconds": 25,
         },
     }
 
@@ -467,25 +476,77 @@ def test_admin_config_update_unknown_top_key(client):
 def test_admin_config_economy_updates_reward_config(client):
     r = client.put(
         "/admin/api/config",
-        json={"normal_cost": 2, "ad_reward": 5, "ad_seconds": 30},
+        json={"normal_cost": 2, "ad_reward": 5},
         headers=_auth(),
     )
     assert r.status_code == 200
     body = r.json()
     assert body["normal_cost"] == 2
     assert body["ad_reward"] == 5
-    assert body["ad_seconds"] == 30
 
     pub = client.get("/config").json()
     assert pub["normal_cost"] == 2
     assert pub["ad_reward"] == 5
-    assert pub["ad_seconds"] == 30
 
     # Economy changes must actually reach the grant-time table.
     device_id = _linked_device(client)
     r = client.post("/offerwall/sandbox-claim", json={"device_id": device_id})
     assert r.status_code == 200
     assert r.json()["delta"] == 5
+
+
+def test_admin_config_offerwall_ad_length_is_per_slot(client):
+    r = client.put(
+        "/admin/api/config",
+        json={"offerwall_config": {"ad_seconds": 45}},
+        headers=_auth(),
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["offerwall_config"]["ad_seconds"] == 45
+    # The flat legacy key now derives from the offerwall slot.
+    assert body["ad_seconds"] == 45
+
+    pub = client.get("/config").json()
+    assert pub["offerwall_config"]["ad_seconds"] == 45
+    assert pub["ad_seconds"] == 45
+    # Other slots keep their defaults — the length is offerwall-only.
+    assert pub["overlay_config"]["ad_seconds"] == 25
+
+
+def test_admin_config_offerwall_video_mode(client):
+    r = client.put(
+        "/admin/api/config",
+        json={
+            "offerwall_config": {
+                "ad_type": "video",
+                "video_url": "https://cdn.example.com/ad.mp4",
+            }
+        },
+        headers=_auth(),
+    )
+    assert r.status_code == 200
+    cfg = r.json()["offerwall_config"]
+    assert cfg["ad_type"] == "video"
+    assert cfg["video_url"] == "https://cdn.example.com/ad.mp4"
+
+
+def test_admin_config_rejects_bad_ad_type(client):
+    r = client.put(
+        "/admin/api/config",
+        json={"offerwall_config": {"ad_type": "banner"}},
+        headers=_auth(),
+    )
+    assert r.status_code == 422
+
+
+def test_admin_config_rejects_bad_top_level_key(client):
+    r = client.put(
+        "/admin/api/config",
+        json={"ad_seconds": 30},
+        headers=_auth(),
+    )
+    assert r.status_code == 422
 
 
 def test_admin_config_economy_rejects_negative(client):

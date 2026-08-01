@@ -7,8 +7,9 @@ and carries only safe display toggles — no user data, no balances, no PII.
 Ad slots (overlay / card / offerwall) are stored as JSON blobs under one
 config key each, so the whole suite for a slot is a single atomic value.
 Credit economy values (click costs + ad reward) are read live from the
-existing `reward_config` table; the sandbox ad length lives in the config
-table as `ad_seconds`.
+existing `reward_config` table. The offerwall ad length lives inside the
+offerwall slot blob as `ad_seconds` (25s default; a legacy global
+`ad_seconds` config row is still honoured as a fallback for that slot).
 
 The `config` key/value table is created here (deterministic, at import
 time) so it exists the moment the router is wired. The protected
@@ -37,13 +38,15 @@ DEFAULT_SLOT = {
     "frequency_every": 3,
     "min_view_seconds": 0,
     "auto_close_seconds": 0,
+    "ad_type": "text",
+    "video_url": "",
+    "ad_seconds": 25,
 }
 
 DEFAULT_CONFIG = {
     "overlay_config": json.dumps(DEFAULT_SLOT),
     "card_config": json.dumps(DEFAULT_SLOT),
     "offerwall_config": json.dumps(DEFAULT_SLOT),
-    "ad_seconds": "25",
 }
 
 CONFIG_KEYS = frozenset(DEFAULT_CONFIG.keys())
@@ -62,6 +65,9 @@ class AdSlotConfig(BaseModel):
     frequency_every: int
     min_view_seconds: int
     auto_close_seconds: int
+    ad_type: str
+    video_url: str
+    ad_seconds: int
 
 
 class PublicConfigResponse(BaseModel):
@@ -139,6 +145,14 @@ def _parse_slot(raw: dict[str, str], key: str) -> dict:
     slot["frequency_every"] = max(1, _int(slot["frequency_every"], 3))
     slot["min_view_seconds"] = max(0, _int(slot["min_view_seconds"], 0))
     slot["auto_close_seconds"] = max(0, _int(slot["auto_close_seconds"], 0))
+    if slot["ad_type"] not in ("text", "video"):
+        slot["ad_type"] = "text"
+    slot["video_url"] = str(slot.get("video_url", "") or "")
+    slot["ad_seconds"] = min(600, max(1, _int(slot.get("ad_seconds"), 25)))
+    # Legacy fallback: the old global `ad_seconds` config row still feeds
+    # the offerwall slot until the admin saves the slot with a new value.
+    if key == "offerwall_config" and "ad_seconds" not in data:
+        slot["ad_seconds"] = min(600, max(1, _int(raw.get("ad_seconds"), 25)))
     return slot
 
 
@@ -180,7 +194,8 @@ def build_public_config(raw: dict[str, str]) -> PublicConfigResponse:
         normal_cost=rewards.get("normal_click", DEFAULT_REWARDS["normal_click"]),
         fast_cost=rewards.get("premium_click", DEFAULT_REWARDS["premium_click"]),
         ad_reward=rewards.get("ad_reward", DEFAULT_REWARDS["ad_reward"]),
-        ad_seconds=_int(raw.get("ad_seconds"), 25),
+        # Flat legacy key, now derived from the offerwall slot.
+        ad_seconds=offerwall["ad_seconds"],
     )
 
 
