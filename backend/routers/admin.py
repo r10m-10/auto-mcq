@@ -27,10 +27,13 @@ Endpoints (all JSON under /admin/api/* except the page itself):
   DELETE /admin/api/devices/{id}                 reuses device_delete logic
   POST   /admin/api/devices/{id}/credits         arbitrary +/- adjust
   GET    /admin/api/activity                     30-day series for the chart
-  GET    /admin/api/config                       read ad toggles
-  PUT    /admin/api/config                       write ad toggles
+  GET    /admin/api/config                       read ad slot configs
+  PUT    /admin/api/config                       write ad slot configs + economy
+  GET    /admin/api/rewards                      read credit amounts
+  GET    /admin/api/ads-metrics                  ad impression/click/close stats
 """
 
+import json
 import os
 import secrets
 import uuid
@@ -38,13 +41,14 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.db import get_db
 from app.models import CreditEventResponse
+from routers.ads import VALID_SLOTS, ensure_ads_table
 from routers.config import (
-    CONFIG_KEYS,
-    DEFAULT_CONFIG,
+    DEFAULT_SLOT,
+    SLOT_KEYS,
     build_public_config,
     ensure_config_table,
     get_config,
@@ -170,13 +174,65 @@ class ActivityPoint(BaseModel):
     active_devices: int
 
 
-class ConfigUpdateRequest(BaseModel):
-    sponsor_overlay_enabled: bool | None = None
-    sponsor_card_enabled: bool | None = None
-    offerwall_enabled: bool | None = None
+class SlotConfigUpdate(BaseModel):
+    """Partial update for one ad slot. Only provided fields are applied."""
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool | None = None
+    source: str | None = None
     ad_name: str | None = None
     ad_sub: str | None = None
     ad_url: str | None = None
+    ad_cta: str | None = None
+    third_party_html: str | None = None
+    frequency_every: int | None = Field(default=None, ge=1)
+    min_view_seconds: int | None = Field(default=None, ge=0)
+    auto_close_seconds: int | None = Field(default=None, ge=0)
+
+    @field_validator("source")
+    @classmethod
+    def _valid_source(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("house", "third_party"):
+            raise ValueError("source must be 'house' or 'third_party'")
+        return v
+
+
+class ConfigUpdateRequest(BaseModel):
+    """Body for PUT /admin/api/config. Any subset of fields may be sent."""
+    model_config = ConfigDict(extra="forbid")
+
+    overlay_config: SlotConfigUpdate | None = None
+    card_config: SlotConfigUpdate | None = None
+    offerwall_config: SlotConfigUpdate | None = None
+    ad_seconds: int | None = Field(default=None, ge=1, le=600)
+    normal_cost: int | None = Field(default=None, ge=0, le=10000)
+    fast_cost: int | None = Field(default=None, ge=0, le=10000)
+    ad_reward: int | None = Field(default=None, ge=0, le=10000)
+
+
+class RewardsResponse(BaseModel):
+    normal_cost: int
+    fast_cost: int
+    ad_reward: int
+
+
+class AdSlotMetrics(BaseModel):
+    slot: str
+    impressions: int
+    clicks: int
+    closes: int
+
+
+class AdsMetricsPoint(BaseModel):
+    date: str
+    impressions: int
+    clicks: int
+    closes: int
+
+
+class AdsMetricsResponse(BaseModel):
+    slots: list[AdSlotMetrics]
+    series: list[AdsMetricsPoint]
 
 
 # --------------------------------------------------------------------------
@@ -376,6 +432,26 @@ def admin_get_config():
     return build_public_config(get_config())
 
 
+def _merge_slot(existing: dict, patch: SlotConfigUpdate) -> dict:
+    """Merge a partial slot update into the current slot dict (or defaults)."""
+    merged = dict(existing or DEFAULT_SLOT)
+    for field in SlotConfigUpdate.model_fields:
+        value = getattr(patch, field)
+        if value is not None:
+            merged[field] = value
+    return merged
+
+
+def _write_reward(conn, action_type: str, credits: int) -> None:
+    conn.execute(
+        """
+        INSERT INTO reward_config (action_type, credits) VALUES (?, ?)
+        ON CONFLICT(action_type) DO UPDATE SET credits = excluded.credits
+        """,
+        (action_type, credits),
+    )
+
+
 @router.put("/admin/api/config", response_model=PublicConfigResponse, dependencies=[Depends(require_admin)])
 def admin_update_config(body: ConfigUpdateRequest):
     ensure_config_table()
@@ -383,23 +459,114 @@ def admin_update_config(body: ConfigUpdateRequest):
     if not updates:
         raise HTTPException(status_code=400, detail="No config fields provided")
 
-    bad = [k for k in updates if k not in CONFIG_KEYS]
-    if bad:
-        raise HTTPException(status_code=400, detail=f"Unknown config keys: {', '.join(bad)}")
-
     with get_db() as conn:
-        for key, value in updates.items():
-            if isinstance(value, bool):
-                value = "true" if value else "false"
+        # Slot blobs: merge partial updates into current value, store as JSON.
+        for slot_key in SLOT_KEYS:
+            patch = getattr(body, f"{slot_key}_config")
+            if patch is None:
+                continue
+            existing = get_config().get(f"{slot_key}_config", "{}")
+            try:
+                current = json.loads(existing)
+            except (ValueError, TypeError):
+                current = {}
+            merged = _merge_slot(current, patch)
             conn.execute(
                 """
                 INSERT INTO config (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
                 """,
-                (key, str(value)),
+                (f"{slot_key}_config", json.dumps(merged)),
             )
 
+        # Plain config values.
+        if body.ad_seconds is not None:
+            conn.execute(
+                """
+                INSERT INTO config (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+                """,
+                ("ad_seconds", str(body.ad_seconds)),
+            )
+
+        # Economy values live in the reward_config table (read at grant time).
+        if body.normal_cost is not None:
+            _write_reward(conn, "normal_click", body.normal_cost)
+        if body.fast_cost is not None:
+            _write_reward(conn, "premium_click", body.fast_cost)
+        if body.ad_reward is not None:
+            _write_reward(conn, "ad_reward", body.ad_reward)
+
     return build_public_config(get_config())
+
+
+@router.get("/admin/api/rewards", response_model=RewardsResponse, dependencies=[Depends(require_admin)])
+def admin_get_rewards():
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT action_type, credits FROM reward_config"
+        ).fetchall()
+    amounts = {r["action_type"]: r["credits"] for r in rows}
+    return RewardsResponse(
+        normal_cost=amounts.get("normal_click", 1),
+        fast_cost=amounts.get("premium_click", 4),
+        ad_reward=amounts.get("ad_reward", 3),
+    )
+
+
+@router.get("/admin/api/ads-metrics", response_model=AdsMetricsResponse, dependencies=[Depends(require_admin)])
+def admin_ads_metrics():
+    ensure_ads_table()
+    today = datetime.now(timezone.utc).date()
+    days = [today - timedelta(days=i) for i in range(29, -1, -1)]
+    day_labels = [d.isoformat() for d in days]
+
+    with get_db() as conn:
+        totals = conn.execute(
+            "SELECT slot, event_type, COUNT(*) AS n FROM ad_events GROUP BY slot, event_type"
+        ).fetchall()
+        series = conn.execute(
+            """
+            SELECT date(timestamp) AS day,
+                   SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END) AS impressions,
+                   SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END) AS clicks,
+                   SUM(CASE WHEN event_type = 'close' THEN 1 ELSE 0 END) AS closes
+            FROM ad_events
+            WHERE date(timestamp) >= date('now', '-29 days')
+            GROUP BY date(timestamp)
+            """
+        ).fetchall()
+
+    by_slot = {s: {"impressions": 0, "clicks": 0, "closes": 0} for s in VALID_SLOTS}
+    for row in totals:
+        if row["slot"] in by_slot:
+            metric = {
+                "impression": "impressions",
+                "click": "clicks",
+                "close": "closes",
+            }.get(row["event_type"])
+            if metric:
+                by_slot[row["slot"]][metric] = row["n"]
+
+    by_day = {r["day"]: r for r in series}
+    points = []
+    for label in day_labels:
+        row = by_day.get(label)
+        points.append(
+            AdsMetricsPoint(
+                date=label,
+                impressions=row["impressions"] if row else 0,
+                clicks=row["clicks"] if row else 0,
+                closes=row["closes"] if row else 0,
+            )
+        )
+
+    return AdsMetricsResponse(
+        slots=[
+            AdSlotMetrics(slot=s, **by_slot[s]) for s in VALID_SLOTS
+        ],
+        series=points,
+    )
 
 
 # --------------------------------------------------------------------------
@@ -621,16 +788,21 @@ ADMIN_HTML = r"""<!DOCTYPE html>
     </section>
 
     <section id="tab-ads" style="display:none">
+      <div id="slotCards"></div>
       <div class="card">
-        <h3 class="card-title">AD &amp; SPONSOR SWITCHES</h3>
-        <div id="toggles"></div>
+        <h3 class="card-title">REWARDS &amp; ECONOMY</h3>
+        <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+          <div class="field"><label>Normal click cost</label><input id="normal_cost" type="number" min="0" autocomplete="off"></div>
+          <div class="field"><label>Fast click cost</label><input id="fast_cost" type="number" min="0" autocomplete="off"></div>
+          <div class="field"><label>Ad reward</label><input id="ad_reward" type="number" min="0" autocomplete="off"></div>
+          <div class="field"><label>Ad length (s)</label><input id="ad_seconds" type="number" min="1" autocomplete="off"></div>
+        </div>
+        <div class="modal-actions" style="padding:0"><button class="btn btn-primary" id="saveRewardsBtn">SAVE ECONOMY</button></div>
       </div>
       <div class="card">
-        <h3 class="card-title">AD COPY</h3>
-        <div class="field"><label>Ad name</label><input id="ad_name" autocomplete="off"></div>
-        <div class="field"><label>Ad subtitle</label><textarea id="ad_sub" rows="2"></textarea></div>
-        <div class="field"><label>Ad URL</label><input id="ad_url" autocomplete="off"></div>
-        <div class="modal-actions" style="padding:0"><button class="btn btn-primary" id="saveConfigBtn">SAVE ADS</button></div>
+        <h3 class="card-title">AD METRICS</h3>
+        <div style="overflow-x:auto"><table id="adsMetricsTable"></table></div>
+        <div id="adsMetricsChart" style="margin-top:1rem"></div>
       </div>
     </section>
   </main>
@@ -839,38 +1011,110 @@ ADMIN_HTML = r"""<!DOCTYPE html>
   }
 
   /* ---- ads / config ---- */
-  const TOGGLE_KEYS = [
-    ["sponsor_overlay_enabled", "Sponsor overlay", "Show the sponsor card overlay on the claim page after a claim."],
-    ["sponsor_card_enabled", "Sponsor card", "Show the sponsor card in the extension popup."],
-    ["offerwall_enabled", "Offerwall", "Allow the rewarded-ad (offerwall) claim flow."],
+  const SLOT_META = [
+    ["overlay", "WEBSITE OVERLAY", "Sponsor card shown on the claim page after a claim."],
+    ["card", "EXTENSION POPUP CARD", "Sponsor card in the extension popup."],
+    ["offerwall", "OFFERWALL (WATCH AD)", "Rewarded-ad modal on the claim page."],
   ];
-  async function loadAds() {
-    const cfg = await api("/config");
-    $("#toggles").innerHTML = TOGGLE_KEYS.map(([key, name, desc]) => {
-      const on = cfg[key] === true;
-      return `<div class="toggle-row">
-        <div><div class="tgl-name">${name}</div><div class="tgl-desc">${desc}</div></div>
-        <label class="switch"><input type="checkbox" data-key="${key}" ${on ? "checked" : ""}><span class="slider"></span></label>
-      </div>`;
-    }).join("");
-    $("#ad_name").value = cfg.ad_name || "";
-    $("#ad_sub").value = cfg.ad_sub || "";
-    $("#ad_url").value = cfg.ad_url || "";
+
+  function slotCardHTML(slotKey, title, desc, cfg) {
+    const thirdPartyField = slotKey === "offerwall"
+      ? `<div class="field"><label>Third-party HTML</label><textarea data-slot="${slotKey}" data-key="third_party_html" rows="5" spellcheck="false"></textarea></div>`
+      : `<p class="dim" style="font-size:.8rem;margin:.5rem 0">Third-party code is offerwall-only for now &mdash; browser extensions block remote ad scripts.</p>`;
+    const freqField = slotKey === "overlay"
+      ? `<div class="field"><label>Frequency (every N claims)</label><input data-slot="${slotKey}" data-key="frequency_every" type="number" min="1" autocomplete="off"></div>`
+      : "";
+    const srcSelected = (v) => cfg.source === v ? "selected" : "";
+    return `<div class="card" data-slot="${slotKey}">
+      <h3 class="card-title">${title}</h3>
+      <p class="dim" style="margin-top:-.5rem">${desc}</p>
+      <div class="toggle-row">
+        <div><div class="tgl-name">ENABLED</div><div class="tgl-desc">Show this ad slot at all</div></div>
+        <label class="switch"><input type="checkbox" data-slot="${slotKey}" data-key="enabled" ${cfg.enabled ? "checked" : ""}><span class="slider"></span></label>
+      </div>
+      <div class="field"><label>Source</label>
+        <select data-slot="${slotKey}" data-key="source">
+          <option value="house" ${srcSelected("house")}>HOUSE (in-house text)</option>
+          <option value="third_party" ${srcSelected("third_party")}>THIRD-PARTY</option>
+        </select>
+      </div>
+      <div class="field"><label>Ad name</label><input data-slot="${slotKey}" data-key="ad_name" autocomplete="off"></div>
+      <div class="field"><label>Ad subtitle</label><textarea data-slot="${slotKey}" data-key="ad_sub" rows="2"></textarea></div>
+      <div class="field"><label>Ad URL</label><input data-slot="${slotKey}" data-key="ad_url" autocomplete="off"></div>
+      <div class="field"><label>CTA label</label><input data-slot="${slotKey}" data-key="ad_cta" autocomplete="off"></div>
+      ${thirdPartyField}
+      ${freqField}
+      <div class="field"><label>Min view (seconds, 0=off)</label><input data-slot="${slotKey}" data-key="min_view_seconds" type="number" min="0" autocomplete="off"></div>
+      <div class="field"><label>Auto-close (seconds, 0=off)</label><input data-slot="${slotKey}" data-key="auto_close_seconds" type="number" min="0" autocomplete="off"></div>
+      <div class="modal-actions" style="padding:0"><button class="btn btn-primary" data-save-slot="${slotKey}">SAVE ${title}</button></div>
+    </div>`;
   }
 
-  $("#saveConfigBtn").addEventListener("click", async () => {
+  function readSlot(slotKey) {
+    const out = {};
+    $$(`[data-slot="${slotKey}"][data-key]`).forEach(el => {
+      if (el.type === "checkbox") out[el.dataset.key] = el.checked;
+      else if (el.type === "number") out[el.dataset.key] = el.value === "" ? 0 : parseInt(el.value, 10);
+      else out[el.dataset.key] = el.value;
+    });
+    return out;
+  }
+
+  async function loadAds() {
+    const cfg = await api("/config");
+    $("#slotCards").innerHTML = SLOT_META.map(([key, title, desc]) =>
+      slotCardHTML(key, title, desc, cfg[key + "_config"])
+    ).join("");
+
+    $$("[data-save-slot]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const slotKey = btn.dataset.saveSlot;
+        try {
+          const body = { [slotKey + "_config"]: readSlot(slotKey) };
+          const cfg = await api("/config", { method: "PUT", body: JSON.stringify(body) });
+          banner("Saved " + slotKey + " slot.");
+          loadAds();
+        } catch (e) { banner(e.message, "err"); }
+      });
+    });
+
+    $("#normal_cost").value = cfg.normal_cost;
+    $("#fast_cost").value = cfg.fast_cost;
+    $("#ad_reward").value = cfg.ad_reward;
+    $("#ad_seconds").value = cfg.ad_seconds;
+    loadAdsMetrics();
+  }
+
+  $("#saveRewardsBtn").addEventListener("click", async () => {
     try {
       const body = {
-        ad_name: $("#ad_name").value.trim(),
-        ad_sub: $("#ad_sub").value.trim(),
-        ad_url: $("#ad_url").value.trim(),
+        normal_cost: parseInt($("#normal_cost").value, 10),
+        fast_cost: parseInt($("#fast_cost").value, 10),
+        ad_reward: parseInt($("#ad_reward").value, 10),
+        ad_seconds: parseInt($("#ad_seconds").value, 10),
       };
-      $$("#toggles input[type=checkbox]").forEach(c => body[c.dataset.key] = c.checked);
+      if (Object.values(body).some(v => !Number.isFinite(v))) throw new Error("Enter valid numbers.");
       const cfg = await api("/config", { method: "PUT", body: JSON.stringify(body) });
-      banner("Ad settings saved.");
+      banner("Economy saved.");
       loadAds();
     } catch (e) { banner(e.message, "err"); }
   });
+
+  async function loadAdsMetrics() {
+    try {
+      const m = await api("/ads-metrics");
+      const rows = m.slots.map(s =>
+        `<tr><td class="mono">${s.slot.toUpperCase()}</td><td>${s.impressions}</td><td>${s.clicks}</td><td>${s.closes}</td></tr>`
+      ).join("");
+      $("#adsMetricsTable").innerHTML =
+        `<thead><tr><th>SLOT</th><th>IMPRESSIONS</th><th>CLICKS</th><th>CLOSES</th></tr></thead><tbody>${rows}</tbody>`;
+      $("#adsMetricsChart").innerHTML =
+        `<p class="spark">Impressions per day</p>${chartSvg(m.series, "impressions")}`;
+    } catch (e) {
+      $("#adsMetricsTable").innerHTML = '<div class="empty">No ad metrics yet.</div>';
+      $("#adsMetricsChart").innerHTML = "";
+    }
+  }
 
   $("#detailClose").addEventListener("click", () => $("#detailModal").classList.remove("is-open"));
 

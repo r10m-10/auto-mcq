@@ -116,9 +116,26 @@ function buildStoreChooser() {
   })
 }
 
+/* Keep the "3 credits" mentions on the landing page in sync with the
+   admin-configured ad reward. Fail-open: if /config is unreachable the
+   static numbers stay. */
+function syncRewardAmounts() {
+  const mentions = document.querySelectorAll(".reward-amount")
+  if (!mentions.length) return
+  fetch(API_BASE + "/config")
+    .then((res) => (res.ok ? res.json() : null))
+    .then((cfg) => {
+      if (cfg && typeof cfg.ad_reward === "number") {
+        mentions.forEach((el) => { el.textContent = cfg.ad_reward })
+      }
+    })
+    .catch(() => {})
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   ensurePencilDefs()
   buildHeroSheet()
   prefillHero()
   buildStoreChooser()
+  syncRewardAmounts()
 })

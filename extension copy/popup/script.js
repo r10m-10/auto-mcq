@@ -1,5 +1,5 @@
 const API_BASE = "https://automcq.reyaanshsharma.com"
-const CLICK_COSTS = { normal: 1, fast: 4 }
+let CLICK_COSTS = { normal: 1, fast: 4 }
 
 const status = document.querySelector(".cur-status")
 const balanceEl = document.querySelector(".credits-balance")
@@ -36,7 +36,11 @@ let sponsorCardEnabled = true
 /* Respect the admin's sponsor_card_enabled switch: when ads are off, the
    popup sponsor card never appears, and any pending claim is dropped so it
    can't resurface if the switch is later turned back on. Fail-open (default
-   true) so a config fetch failure never hides a card that should show. */
+   true) so a config fetch failure never hides a card that should show.
+
+   Also picks up the card's house ad copy (name/sub/CTA + URL) and the
+   credit economy (normal/fast costs, ad reward) so the popup reflects the
+   admin's config. */
 async function loadSponsorCardSetting() {
     try {
         const res = await fetch(API_BASE + "/config")
@@ -46,8 +50,44 @@ async function loadSponsorCardSetting() {
         if (!sponsorCardEnabled) {
             await chrome.storage.local.remove("last_claim")
         }
+        applyCardConfig(cfg.card_config)
+        applyEconomy(cfg)
     } catch {
         /* keep default */
+    }
+}
+
+function applyCardConfig(slotCfg) {
+    if (!slotCfg) return
+    const nameEl = document.getElementById("sponsorAdName")
+    const subEl = document.getElementById("sponsorAdSub")
+    const ctaEl = document.getElementById("sponsorAdCta")
+    if (nameEl && slotCfg.ad_name) nameEl.textContent = slotCfg.ad_name
+    if (subEl && slotCfg.ad_sub) subEl.textContent = slotCfg.ad_sub
+    if (ctaEl && slotCfg.ad_cta) ctaEl.textContent = slotCfg.ad_cta
+}
+
+function applyEconomy(cfg) {
+    if (typeof cfg.normal_cost === "number") CLICK_COSTS.normal = cfg.normal_cost
+    if (typeof cfg.fast_cost === "number") CLICK_COSTS.fast = cfg.fast_cost
+}
+
+/* Fire-and-forget ad metric; never blocks the card. */
+function trackCard(eventType) {
+    try {
+        chrome.storage.local.get("device_id").then(function (stored) {
+            fetch(API_BASE + "/ads/event", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    slot: "card",
+                    event_type: eventType,
+                    device_id: stored.device_id || null,
+                }),
+            }).catch(function () {})
+        })
+    } catch (e) {
+        /* ignore */
     }
 }
 
@@ -211,6 +251,7 @@ function showSponsor(claim) {
     if (!sponsorCardEnabled) return
     sponsorDelta.textContent = String(claim.delta)
     sponsorOverlay.classList.add("visible")
+    trackCard("impression")
 }
 
 function hideSponsor() {
@@ -222,13 +263,23 @@ function hideSponsor() {
    closing the card shows it again. */
 function dismissSponsor() {
     hideSponsor()
+    trackCard("close")
     chrome.storage.local.remove("last_claim")
 }
 
 sponsorClose.addEventListener("click", dismissSponsor)
 
 sponsorAdCta.addEventListener("click", function () {
-    chrome.tabs.create({ url: API_BASE })
+    trackCard("click")
+    chrome.storage.local.get("last_claim").then(function () {
+        fetch(API_BASE + "/config")
+            .then(function (res) { return res.ok ? res.json() : null })
+            .then(function (cfg) {
+                const url = (cfg && cfg.card_config && cfg.card_config.ad_url) || API_BASE
+                chrome.tabs.create({ url: url })
+            })
+            .catch(function () { chrome.tabs.create({ url: API_BASE }) })
+    })
 })
 
 document.addEventListener("keydown", function (e) {

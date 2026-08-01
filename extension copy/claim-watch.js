@@ -40,7 +40,7 @@ window.addEventListener("message", function (event) {
         })
 
         if (overlayEnabled) {
-            showSponsorCard(data.delta)
+            showSponsorCard(data.delta, cfg.overlay_config)
         } else {
             /* No overlay is going to render, so the page must not wait out
                its 4s fallback timer — tell it the (skipped) sponsor card is
@@ -61,8 +61,42 @@ function fetchAdConfig() {
         })
 }
 
-function showSponsorCard(delta) {
+function esc(text) {
+    const div = document.createElement("div")
+    div.textContent = String(text)
+    return div.innerHTML
+}
+
+/* Fire-and-forget ad metric. Fail-open: never let a tracking blip block
+   the sponsor card itself. */
+function track(slot, eventType) {
+    try {
+        chrome.storage.local.get("device_id").then(function (stored) {
+            fetch(API_BASE + "/ads/event", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    slot: slot,
+                    event_type: eventType,
+                    device_id: stored.device_id || null,
+                }),
+            }).catch(function () {})
+        })
+    } catch (e) {
+        /* ignore */
+    }
+}
+
+function showSponsorCard(delta, slotCfg) {
     if (document.getElementById("automcq-sponsor-overlay")) return
+
+    /* House ad copy comes from the admin's overlay_config; defaults keep
+       the original hardcoded creative as a fail-open fallback. */
+    slotCfg = slotCfg || {}
+    const name = slotCfg.ad_name || "VEDPREP CRASH COURSE"
+    const sub = slotCfg.ad_sub || "JEE & NEET 2027 mock tests with instant solutions."
+    const cta = slotCfg.ad_cta || "LEARN MORE"
+    const url = slotCfg.ad_url || API_BASE
 
     const overlay = document.createElement("div")
     overlay.id = "automcq-sponsor-overlay"
@@ -125,17 +159,24 @@ function showSponsorCard(delta) {
         '<p class="automcq-bylabel">SPONSORED BY</p>' +
         '<div class="automcq-promo">' +
         '<span class="automcq-promo-tag">AD</span>' +
-        '<p class="automcq-promo-name">VEDPREP CRASH COURSE</p>' +
-        '<p class="automcq-promo-sub">JEE &amp; NEET 2027 mock tests with instant solutions.</p>' +
-        '<a class="automcq-promo-cta" href="' + API_BASE + '" target="_blank" rel="noopener">LEARN MORE</a>' +
+        '<p class="automcq-promo-name">' + esc(name) + '</p>' +
+        '<p class="automcq-promo-sub">' + esc(sub) + '</p>' +
+        '<a class="automcq-promo-cta" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(cta) + '</a>' +
         '</div>' +
         '<button class="automcq-close" type="button">CLOSE</button>' +
         '</div>'
 
     document.documentElement.appendChild(overlay)
 
+    track("overlay", "impression")
+
+    overlay.querySelector(".automcq-promo-cta").addEventListener("click", function () {
+        track("overlay", "click")
+    })
+
     overlay.querySelector(".automcq-close").addEventListener("click", function () {
         overlay.remove()
+        track("overlay", "close")
         /* Tell the page the sponsor card is dismissed so it can play the
            "+N CREDITS EARNED" stamp animation now that the ad is gone. */
         window.postMessage({ type: "automcq-sponsor-closed" }, "*")

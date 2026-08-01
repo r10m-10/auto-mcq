@@ -1,6 +1,7 @@
 "use strict"
 
 // EDIT-ME (testing): ad length in seconds. Set to 2-3 for quick tests instead of waiting 25s.
+// Overridden at runtime by the admin's offerwall_config.ad_seconds when reachable.
 const AD_SECONDS = 25
 const AD_REWARD = 3
 const BALANCE_BUBBLES = 12
@@ -13,12 +14,18 @@ const state = {
   headerGrid: null,
   adTimer: null,
   adRemaining: 0,
+  adSeconds: AD_SECONDS,
+  adReward: AD_REWARD,
   pendingFlash: null,
   noticeFromTabLeave: false,
 }
 
 function $(sel) {
   return document.querySelector(sel)
+}
+
+function $$(sel) {
+  return Array.from(document.querySelectorAll(sel))
 }
 
 async function init() {
@@ -202,31 +209,73 @@ function bindEvents() {
 async function handleWatchReward() {
   /* Respect the admin's offerwall_enabled switch: when ads are off, tell
      the user there is nothing to watch instead of opening the ad modal.
-     Fail-open (default true) so a config fetch failure never blocks ads. */
-  let enabled = true
+     Fail-open (default true) so a config fetch failure never blocks ads.
+     Also picks up the admin's ad reward amount, ad length, and the
+     offerwall slot config (house text or pasted third-party HTML). */
+  let cfg = {}
   try {
     const res = await fetch(API_BASE + "/config")
     if (res.ok) {
-      const cfg = await res.json()
-      enabled = cfg.offerwall_enabled !== false
+      cfg = await res.json()
     }
   } catch (e) {
-    /* keep default */
+    /* keep defaults */
   }
-  if (!enabled) {
+  if (cfg.offerwall_enabled === false) {
     openNoticeModal("No ads to display right now. Check back later.", "NO ADS")
     return
   }
-  openAdModal()
+  if (typeof cfg.ad_reward === "number" && cfg.ad_reward > 0) {
+    state.adReward = cfg.ad_reward
+  }
+  if (typeof cfg.ad_seconds === "number" && cfg.ad_seconds > 0) {
+    state.adSeconds = cfg.ad_seconds
+  }
+  applyRewardCopy(state.adReward)
+  openAdModal(cfg.offerwall_config || {})
 }
 
-function openAdModal() {
+/* Keep the visible "+N" amounts across the claim page in sync with the
+   admin's configured reward. */
+function applyRewardCopy(reward) {
+  $$(".reward-amount").forEach(el => { el.textContent = reward })
+}
+
+function trackAd(eventType) {
+  try {
+    fetch(API_BASE + "/ads/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slot: "offerwall", event_type: eventType, device_id: state.deviceId }),
+    }).catch(() => {})
+  } catch (e) {
+    /* fire-and-forget */
+  }
+}
+
+function openAdModal(slotCfg) {
   /* TODO(real-offerwall): mount the real offerwall / AdSense iframe here
-     once the SDK accounts are approved. For now, a sandbox countdown. */
+     once the SDK accounts are approved. For now, a sandbox countdown —
+     and if the admin has pasted third-party HTML for the offerwall slot,
+     it is rendered into the reward frame with the sandbox gate still
+     running around it as the anti-abuse layer. */
   const modal = $("#rewardModal")
   modal.classList.add("is-open")
+
+  const frame = $("#rewardAdFrame")
+  const sandbox = $("#rewardSandbox")
+  if (slotCfg && slotCfg.source === "third_party" && slotCfg.third_party_html) {
+    sandbox.style.display = "none"
+    frame.style.display = "block"
+    frame.innerHTML = slotCfg.third_party_html
+  } else {
+    frame.style.display = "none"
+    sandbox.style.display = "block"
+  }
+
   startAdCountdown("WATCHING\u2026")
   $("#rewardCancel").focus()
+  trackAd("impression")
 }
 
 function startAdCountdown(hintText) {
@@ -238,7 +287,7 @@ function startAdCountdown(hintText) {
   const hintEl = $("#rewardHint")
   const claimBtn = $("#rewardClaim")
 
-  state.adRemaining = AD_SECONDS
+  state.adRemaining = state.adSeconds
   // EDIT-ME (testing): set to false to keep CLAIM always enabled while the ad runs
   claimBtn.disabled = true
   hintEl.textContent = hintText
@@ -265,20 +314,21 @@ function startAdCountdown(hintText) {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state.adTimer) {
     state.noticeFromTabLeave = true
-    closeAdModal()
+    closeAdModal(true)
   } else if (!document.hidden && state.noticeFromTabLeave) {
     state.noticeFromTabLeave = false
     openNoticeModal()
   }
 })
 
-function closeAdModal() {
+function closeAdModal(fromTabLeave) {
   if (state.adTimer) {
     window.clearInterval(state.adTimer)
     state.adTimer = null
   }
   $("#rewardModal").classList.remove("is-open")
   $("#rewardClaim").disabled = true
+  if (!fromTabLeave) trackAd("close")
 }
 
 function openNoticeModal(body, title) {
@@ -295,6 +345,7 @@ function closeNoticeModal() {
 async function claimReward() {
   const btn = $("#rewardClaim")
   btn.disabled = true
+  trackAd("click")
   try {
     const res = await claimSandbox(state.deviceId)
     applyBalance(res.credits_balance)
@@ -304,7 +355,7 @@ async function claimReward() {
       { type: "automcq-claim", delta: res.delta, balance: res.credits_balance },
       "*"
     )
-    deferEarnedFlash(AD_REWARD)
+    deferEarnedFlash(state.adReward)
   } catch (err) {
     if (err.status === 429) {
       setCooldownError(err)
